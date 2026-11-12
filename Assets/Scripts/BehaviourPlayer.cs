@@ -68,46 +68,24 @@ public class BehaviourPlayer : MonoBehaviour
     {
         if (player.IsMine())
         {
-            if (Input.GetKey(KeyCode.W))
+            Vector2 inputMove = Vector2.zero;
+
+            if (Input.GetKey(KeyCode.W)) inputMove.y += 1f;
+            if (Input.GetKey(KeyCode.S)) inputMove.y -= 1f;
+            if (Input.GetKey(KeyCode.A)) inputMove.x -= 1f;
+            if (Input.GetKey(KeyCode.D)) inputMove.x += 1f;
+
+            if (ui != null && ui.MoveDirection.sqrMagnitude > 0.01f)
             {
-                move.y = 1;
+                inputMove = ui.MoveDirection;
             }
-            if (Input.GetKey(KeyCode.A))
+            else if (inputMove.sqrMagnitude > 0.01f)
             {
-                move.x = -1;
-            }
-            if (Input.GetKey(KeyCode.S))
-            {
-                move.y = -1;
-            }
-            if (Input.GetKey(KeyCode.D))
-            {
-                move.x = 1;
+                inputMove.Normalize();
             }
 
-            if (Input.GetKeyUp(KeyCode.W))
-            {
-                move.y = 0;
-            }
-            if (Input.GetKeyUp(KeyCode.A))
-            {
-                move.x = 0;
-            }
-            if (Input.GetKeyUp(KeyCode.S))
-            {
-                move.y = 0;
-            }
-            if (Input.GetKeyUp(KeyCode.D))
-            {
-                move.x = 0;
-            }
-
-            move.Normalize();
-            
-            //agent.SetDestination(transform.position + (new Vector3(move.x, 0, move.y) * 1));
+            move = inputMove;
             agent.Move(agent.speed * Time.deltaTime * new Vector3(move.x, 0, move.y));
-
-            
 
             UpdateRotation();
 
@@ -116,7 +94,9 @@ public class BehaviourPlayer : MonoBehaviour
                 isFire = !isFire;
             }
 
-            if(Input.GetMouseButton(0) || isFire)
+            bool wantsFire = Input.GetMouseButton(0) || isFire || (ui != null && ui.IsAttackingWithJoystick);
+
+            if (wantsFire)
             {
                 player.Fire();
             }
@@ -125,36 +105,32 @@ public class BehaviourPlayer : MonoBehaviour
 
     void UpdateRotation()
     {
-        if (enableRotate)
+        if (!enableRotate)
+            return;
+
+        if (ui != null && ui.IsAttackingWithJoystick)
+        {
+            Vector2 attackDir = ui.AttackDirection;
+            Vector3 aimDir = new Vector3(attackDir.x, 0, attackDir.y).normalized;
+            if (aimDir.sqrMagnitude > 0.001f)
+            {
+                transform.forward = aimDir;
+            }
+        }
+        else if (Camera.main != null)
         {
             var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            var hits = Physics.RaycastAll(ray);
-
-            float distanceToGround = 0;
-
-            foreach (var hit in hits)
+            Plane groundPlane = new Plane(Vector3.up, new Vector3(0, transform.position.y, 0));
+            if (groundPlane.Raycast(ray, out float enter))
             {
-                if (hit.collider.gameObject.CompareTag("Ground"))
+                Vector3 worldPos = ray.GetPoint(enter);
+                Vector3 dir = worldPos - transform.position;
+                dir.y = 0;
+                if (dir.sqrMagnitude > 0.001f)
                 {
-                    distanceToGround = hit.distance;
-                    break;
+                    transform.forward = dir.normalized;
                 }
             }
-
-            Vector3 mousePos = new()
-            {
-                x = Input.mousePosition.x,
-                y = Input.mousePosition.y,
-                z = distanceToGround
-            };
-
-            var pos = Camera.main.ScreenToWorldPoint(mousePos);
-
-            var dir = pos - transform.position;
-            dir.y = 0;
-            dir.Normalize();
-
-            transform.forward = dir;
         }
     }
 

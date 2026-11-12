@@ -11,6 +11,83 @@ namespace BatlIO.Editor
 {
     public static class NetcodeMigrationUtility
     {
+        [MenuItem("Netcode/Fix Projectiles And Aiming")]
+        public static void FixProjectilesAndAiming()
+        {
+            Debug.Log("[NetcodeMigration] Fixing projectiles and aiming...");
+            try
+            {
+                AssetDatabase.StartAssetEditing();
+
+                string[] projectilePaths = new string[]
+                {
+                    "Assets/Prefab/Resources/Projectile 1.prefab",
+                    "Assets/Prefab/Resources/Projectile 2.prefab",
+                    "Assets/Prefab/Resources/Projectile 3.prefab"
+                };
+
+                foreach (var path in projectilePaths)
+                {
+                    if (!File.Exists(path))
+                        continue;
+
+                    var root = PrefabUtility.LoadPrefabContents(path);
+                    if (root == null)
+                        continue;
+
+                    RemovePhotonComponents(root);
+
+                    var netTransform = root.GetComponent<NetworkTransform>();
+                    if (netTransform != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(netTransform, true);
+                        Debug.Log($"[NetcodeMigration] Removed NetworkTransform from {path}");
+                    }
+
+                    var netObject = root.GetComponent<NetworkObject>();
+                    if (netObject != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(netObject, true);
+                        Debug.Log($"[NetcodeMigration] Removed NetworkObject from {path}");
+                    }
+
+                    PrefabUtility.SaveAsPrefabAsset(root, path);
+                    PrefabUtility.UnloadPrefabContents(root);
+                }
+
+                var defaultPrefabs = AssetDatabase.LoadAssetAtPath<NetworkPrefabsList>("Assets/DefaultNetworkPrefabs.asset");
+                if (defaultPrefabs != null)
+                {
+                    var itemsToRemove = new List<NetworkPrefab>();
+                    foreach (var item in defaultPrefabs.PrefabList)
+                    {
+                        if (item.Prefab == null || item.Prefab.name.Contains("Projectile"))
+                        {
+                            itemsToRemove.Add(item);
+                        }
+                    }
+                    foreach (var item in itemsToRemove)
+                    {
+                        defaultPrefabs.Remove(item);
+                        Debug.Log($"[NetcodeMigration] Removed projectile from DefaultNetworkPrefabs: {item.Prefab?.name}");
+                    }
+                    EditorUtility.SetDirty(defaultPrefabs);
+                }
+
+                Debug.Log("[NetcodeMigration] Projectiles fixed successfully!");
+            }
+            catch (Exception ex)
+            {
+                Debug.LogError($"[NetcodeMigration] Error fixing projectiles: {ex}");
+            }
+            finally
+            {
+                AssetDatabase.StopAssetEditing();
+                AssetDatabase.SaveAssets();
+                AssetDatabase.Refresh();
+            }
+        }
+
         [MenuItem("Netcode/Run Complete Migration")]
         public static void RunCompleteMigration()
         {
@@ -92,7 +169,7 @@ namespace BatlIO.Editor
                 PrefabUtility.UnloadPrefabContents(root);
             }
 
-            // Projectile prefabs (local visual effects, remove PhotonView)
+            // Projectile prefabs (local visual effects, remove PhotonView and Network components)
             string[] projectilePaths = new string[]
             {
                 "Assets/Prefab/Resources/Projectile 1.prefab",
@@ -110,6 +187,20 @@ namespace BatlIO.Editor
                     continue;
 
                 RemovePhotonComponents(root);
+
+                var netTransform = root.GetComponent<NetworkTransform>();
+                if (netTransform != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(netTransform, true);
+                    Debug.Log($"[NetcodeMigration] Removed NetworkTransform from {path}");
+                }
+
+                var netObject = root.GetComponent<NetworkObject>();
+                if (netObject != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(netObject, true);
+                    Debug.Log($"[NetcodeMigration] Removed NetworkObject from {path}");
+                }
 
                 PrefabUtility.SaveAsPrefabAsset(root, path);
                 PrefabUtility.UnloadPrefabContents(root);

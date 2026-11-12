@@ -41,6 +41,12 @@ public class Projectile : MonoBehaviour
         OwnerId = data.ownerID;
         Team = data.team;
         speed = data.speed;
+        lofetime = 0f;
+
+        if (moveDir != Vector3.zero)
+        {
+            transform.forward = moveDir;
+        }
 
         if (data.mat)
         {

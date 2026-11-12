@@ -11,7 +11,12 @@ using static Settings;
 public class UI : MonoBehaviour
 {
     [SerializeField] Joystick joystick;
+    [SerializeField] Joystick joystickAttack;
     [SerializeField] Button btnCam;
+
+    public Vector2 MoveDirection => joystick != null ? joystick.Direction : Vector2.zero;
+    public Vector2 AttackDirection => joystickAttack != null ? joystickAttack.Direction : Vector2.zero;
+    public bool IsAttackingWithJoystick => joystickAttack != null && joystickAttack.Direction.sqrMagnitude > 0.04f;
     [SerializeField] Transform healthbarParent;
     [SerializeField] ProgressBar progressBarPrefab;
     [SerializeField] ProgressBar citadelHealthBarPrefab;
@@ -57,7 +62,21 @@ public class UI : MonoBehaviour
 
     private void Awake()
     {
-        //isSleep = true;
+        if (joystick == null || joystickAttack == null)
+        {
+            var foundJoysticks = GetComponentsInChildren<Joystick>(true);
+            foreach (var j in foundJoysticks)
+            {
+                if (j.gameObject.name.Contains("Move") && joystick == null)
+                {
+                    joystick = j;
+                }
+                else if (j.gameObject.name.Contains("Attack") && joystickAttack == null)
+                {
+                    joystickAttack = j;
+                }
+            }
+        }
 
         EventsHolder.playerSpawnedMine.AddListener(PlayerMine_Spawned);
         EventsHolder.playerSpawnedAny.AddListener(PlayerAny_Spawned);
@@ -131,9 +150,16 @@ public class UI : MonoBehaviour
             return;
 
         respawnTimer.gameObject.SetActive(false);
-        //joystick.enabled = true;
-        joystick.gameObject.SetActive(true);
-        joystick.Reset();
+        if (joystick != null)
+        {
+            joystick.gameObject.SetActive(true);
+            joystick.Reset();
+        }
+        if (joystickAttack != null)
+        {
+            joystickAttack.gameObject.SetActive(true);
+            joystickAttack.Reset();
+        }
 
         MultiplayerManager.RespawnPlayer();
     }
@@ -165,7 +191,8 @@ public class UI : MonoBehaviour
         this.status = status;
 
         respawnTimer.gameObject.SetActive(false);
-        joystick.gameObject.SetActive(false);
+        if (joystick != null) joystick.gameObject.SetActive(false);
+        if (joystickAttack != null) joystickAttack.gameObject.SetActive(false);
         perkHandler.Clear();
 
         if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.Count <= 1)
@@ -184,12 +211,12 @@ public class UI : MonoBehaviour
     public void NetworkGameComplete(CompleteStatus status)
     {
         respawnTimer.gameObject.SetActive(false);
-        joystick.gameObject.SetActive(false);
+        if (joystick != null) joystick.gameObject.SetActive(false);
+        if (joystickAttack != null) joystickAttack.gameObject.SetActive(false);
         perkHandler.Clear();
 
         complete.gameObject.SetActive(true);
         complete.Init(status, perkHandler.AllPerks);
-
     }
 
     private void Perk_Clicked(PerkID perkID)
@@ -246,12 +273,16 @@ public class UI : MonoBehaviour
 
         if (player.GetComponent<BehaviourPlayer>() && player.IsMine() && !GameManager.Instance.complete)
         {
-            //joystick.enabled = false;
-            joystick.gameObject.SetActive(false);
-            joystick.Reset();
-
-            //respawnTimer.gameObject.SetActive(true);
-            //respawnTimer.Init();
+            if (joystick != null)
+            {
+                joystick.gameObject.SetActive(false);
+                joystick.Reset();
+            }
+            if (joystickAttack != null)
+            {
+                joystickAttack.gameObject.SetActive(false);
+                joystickAttack.Reset();
+            }
         }
     }
 

@@ -42,6 +42,9 @@ public class NetworkTransform : NetworkBehaviour
 
     private void Update()
     {
+        if (!IsSpawned)
+            return;
+
         if (IsOwner)
         {
             if (Vector3.Distance(transform.position, netPosition.Value) > 0.005f)
@@ -49,17 +52,19 @@ public class NetworkTransform : NetworkBehaviour
                 netPosition.Value = transform.position;
             }
 
-            if (Vector3.Distance(transform.rotation.eulerAngles, netRotation.Value) > 0.1f)
+            if (Quaternion.Angle(transform.rotation, Quaternion.Euler(netRotation.Value)) > 0.5f)
             {
                 netRotation.Value = transform.rotation.eulerAngles;
             }
         }
         else
         {
-            float syncPosSpeed = Mathf.Clamp(Vector3.Distance(transform.position, netPosition.Value), minSyncPosSpeed, float.MaxValue);
+            float dist = Vector3.Distance(transform.position, netPosition.Value);
+            float syncPosSpeed = Mathf.Clamp(dist * 8f, minSyncPosSpeed, float.MaxValue);
             transform.position = Vector3.MoveTowards(transform.position, netPosition.Value, Time.deltaTime * syncPosSpeed);
 
-            float syncRotSpeed = Mathf.Clamp(Vector3.Distance(transform.rotation.eulerAngles, netRotation.Value), minSyncRotSpeed, float.MaxValue);
+            float angleDiff = Quaternion.Angle(transform.rotation, Quaternion.Euler(netRotation.Value));
+            float syncRotSpeed = Mathf.Clamp(angleDiff * 8f, minSyncRotSpeed, float.MaxValue);
             transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(netRotation.Value), Time.deltaTime * syncRotSpeed);
         }
     }

@@ -146,12 +146,14 @@ public class BehaviourAI : MonoBehaviour
 
             if (dist < player.DistanceToAttack)
             {
-                player.Fire();
-
                 var dir = target.position - transform.position;
                 dir.y = 0;
-                dir.Normalize();
-                transform.forward = dir;
+                if (dir.sqrMagnitude > 0.001f)
+                {
+                    transform.forward = dir.normalized;
+                }
+
+                player.Fire();
             }
         }
         else
