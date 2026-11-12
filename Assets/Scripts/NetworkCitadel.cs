@@ -1,9 +1,7 @@
-using Photon.Pun;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using Unity.Netcode;
 
-public class NetworkCitadel : MonoBehaviourPun
+public class NetworkCitadel : NetworkBehaviour
 {
     Citadel citadel;
 
@@ -12,14 +10,10 @@ public class NetworkCitadel : MonoBehaviourPun
         citadel = GetComponent<Citadel>();
     }
 
-    private void Start()
+    public override void OnDestroy()
     {
-        
-    }
-
-    private void OnDestroy()
-    {
-        if (!PhotonNetwork.IsMasterClient && Time.time > 7)
+        base.OnDestroy();
+        if (NetworkManager.Singleton != null && !NetworkManager.Singleton.IsServer && Time.time > 7)
         {
             citadel.Health.Annigilaion();
         }

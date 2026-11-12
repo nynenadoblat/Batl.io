@@ -4,7 +4,6 @@ using UnityEngine.UI;
 using UnityEngine;
 using TMPro;
 using System;
-using Photon.Pun;
 
 public class SpawnUI : MonoBehaviour
 {
@@ -21,15 +20,12 @@ public class SpawnUI : MonoBehaviour
     {
         if (!string.IsNullOrEmpty(input.text))
         {
-            PhotonNetwork.NickName = input.text;
+            LobbyManager.SetNick(input.text);
         }
-
     }
 
     private void Submited(string text)
     {
         Play_Clicked();
     }
-
-
 }

@@ -1,10 +1,10 @@
-using Photon.Pun;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
+using Unity.Netcode;
 
-public class Creepochek : MonoBehaviourPun
+public class Creepochek : NetworkBehaviour
 {
     [SerializeField] HealthComponent health;
 
@@ -24,7 +24,7 @@ public class Creepochek : MonoBehaviourPun
         health.onDamage += Damaged;
     }
 
-    private void Damaged(int arg1, int arg2)
+    private void Damaged(int arg1, ulong arg2)
     {
         EventsHolder.onCrepochekDamage?.Invoke(health);
     }
@@ -39,12 +39,12 @@ public class Creepochek : MonoBehaviourPun
 
     private void Update()
     {
-        if (!MultiplayerManager.IsMaster)
+        if (!IsServer)
             return;
 
         moveTimer += Time.deltaTime;
 
-        if(moveTimer > moveResetTimerThresold)
+        if (moveTimer > moveResetTimerThresold)
         {
             var pos = new Vector3(Random.insideUnitCircle.x, 0, Random.insideUnitCircle.y) * 5;
             agent.SetDestination(pos + transform.position);
@@ -52,17 +52,17 @@ public class Creepochek : MonoBehaviourPun
         }
     }
 
-    private void Anniged(int annigilatorID)
+    private void Anniged(ulong annigilatorID)
     {
-        if (MultiplayerManager.IsMaster)
+        if (IsServer)
         {
-            PhotonNetwork.Destroy(gameObject);
+            GetComponent<NetworkObject>().Despawn(true);
         }
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
+        base.OnDestroy();
         EventsHolder.creepAnniged?.Invoke(health);
     }
-
 }

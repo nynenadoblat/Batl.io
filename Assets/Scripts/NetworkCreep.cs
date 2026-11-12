@@ -1,10 +1,7 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using Photon.Pun;
-using System;
+using Unity.Netcode;
 
-public class NetworkCreep : MonoBehaviourPun
+public class NetworkCreep : NetworkBehaviour
 {
     Creep creep;
 
@@ -14,9 +11,11 @@ public class NetworkCreep : MonoBehaviourPun
         creep.Health.onAnniged += Anniged;
     }
 
-    private void Anniged(int annigilatorID)
+    private void Anniged(ulong annigilatorID)
     {
-        if (photonView.IsMine)
-            PhotonNetwork.Destroy(photonView);
+        if (IsServer)
+        {
+            GetComponent<NetworkObject>().Despawn(true);
+        }
     }
 }

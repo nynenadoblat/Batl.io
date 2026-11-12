@@ -19,11 +19,11 @@ public class HealthComponent : MonoBehaviour
     [field: SerializeField]
     public int HealValue { get; set; } = 3;
 
-    public int OwnerID { get; set; }
+    public ulong OwnerID { get; set; }
 
-    public Action<int> onAnniged;
+    public Action<ulong> onAnniged;
     public Action<int> onIncreaseHealth;
-    public Action<int, int> onDamage;
+    public Action<int, ulong> onDamage;
     public Action<Team> onTeamSet;
 
     [field: SerializeField]
@@ -38,7 +38,7 @@ public class HealthComponent : MonoBehaviour
         } 
     }
 
-    public int LastDamagedOwnerID { get; set; }
+    public ulong LastDamagedOwnerID { get; set; }
     public float TimeLastDamage { get; set; }
     public int AnnigedTime { get; set; }
 
@@ -51,7 +51,7 @@ public class HealthComponent : MonoBehaviour
         Value = MaxValue;
     }
 
-    public void Damage(int value, int ownerID)
+    public void Damage(int value, ulong ownerID)
     {
         if (Random.Range(0, 100) < Evasion)
             return;
@@ -66,7 +66,7 @@ public class HealthComponent : MonoBehaviour
         onDamage?.Invoke(value, ownerID);        
     }
 
-    public void DamageNetworkReceived(int value, int ownerID, int damageTime)
+    public void DamageNetworkReceived(int value, ulong ownerID, int damageTime)
     {
         Value -= value;
         LastDamagedOwnerID = ownerID;
@@ -117,9 +117,6 @@ public class HealthComponent : MonoBehaviour
 
             IEnumerator WaitClientAnnigedData()
             {
-                // В сетевом представлении этого класса есть метод
-                // который получает инфу об аннигиляции и сравнивает
-                // серверное время этого события
                 yield return new WaitForSeconds(0.3f);
 
                 onAnniged?.Invoke(LastDamagedOwnerID);

@@ -1,12 +1,8 @@
-using Photon.Pun;
-using System;
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
+using Unity.Netcode;
 
-public class Citadel : MonoBehaviourPun
+public class Citadel : NetworkBehaviour
 {
-    
     [SerializeField] HealthComponent health;
 
     public HealthComponent Health => health;
@@ -16,9 +12,11 @@ public class Citadel : MonoBehaviourPun
         health.onAnniged += Anniged;
     }
 
-    private void Anniged(int annigerID)
+    private void Anniged(ulong annigerID)
     {
-        if (photonView.IsMine)
-            PhotonNetwork.Destroy(photonView);
+        if (IsServer)
+        {
+            GetComponent<NetworkObject>().Despawn(true);
+        }
     }
 }

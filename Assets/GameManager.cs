@@ -42,7 +42,7 @@ public class GameManager : MonoBehaviour
         set
         {
             tima = value;
-            //print("ёба хуёба");
+            //print("пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ");
         } 
     }
 
@@ -75,7 +75,7 @@ public class GameManager : MonoBehaviour
     private void Citadel_Anniged(int timaAnnigerID)
     {
         complete = true;
-        print("Цитаделько наебнулась");
+        print("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ");
         allPlayers.RemoveAll(p => !p);
 
         if (!MultiplayerManager.IsMaster)
@@ -138,7 +138,7 @@ public class GameManager : MonoBehaviour
 
     private void Tower_Anniged(int annigilatorID)
     {
-        print("пязда башне");
+        print("пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ");
     }
 
     private void Creep_Anniged(HealthComponent creep)
@@ -246,7 +246,7 @@ public class GameManager : MonoBehaviour
             };
 
             
-            print("Ремувим <color=#83C12B>" + player.Nickname + "</color> " + player.Health.Value);
+            print("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ <color=#83C12B>" + player.Nickname + "</color> " + player.Health.Value);
             //allPlayers.Remove(player);
 
             bool isMaster = MultiplayerManager.IsMaster;
@@ -339,7 +339,7 @@ public class RespawnData
 {
     public string name;
     public Team team;
-    public int viewID;
+    public ulong viewID;
     public bool isAI;
     public int countAnniges;
     public int countAnniged;

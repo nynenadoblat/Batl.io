@@ -1,10 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Photon.Pun;
-using System;
+using Unity.Netcode;
 
-public class Tower : MonoBehaviourPun
+public class Tower : NetworkBehaviour
 {
     [SerializeField] HealthComponent health;
     [SerializeField] Projectile projectilePrefab;
@@ -22,14 +21,19 @@ public class Tower : MonoBehaviourPun
         health.onAnniged += Anniged;
     }
 
-    private void Anniged(int annigilatorID)
+    private void Anniged(ulong annigilatorID)
     {
-        if (photonView.IsMine)
-            PhotonNetwork.Destroy(photonView);
+        if (IsServer)
+        {
+            GetComponent<NetworkObject>().Despawn(true);
+        }
     }
 
     private void Update()
     {
+        if (!IsServer)
+            return;
+
         timerRefrashTarget += Time.deltaTime;
         currentRate += Time.deltaTime;
 
@@ -55,13 +59,13 @@ public class Tower : MonoBehaviourPun
         Vector3 targetPos = target.transform.position - new Vector3(0, 1, 0);
         var dir = (targetPos - muzzlePoint.position).normalized;
         var pos = muzzlePoint.position;
-        var p = MultiplayerManager.Spawn(projectilePrefab, pos);
+        var p = Instantiate(projectilePrefab, pos, Quaternion.identity);
         var projectileData = new ProjectileData
         {
             critChance = 7,
             baseDamege = 7,
             direction = dir,
-            ownerID = photonView.ViewID,
+            ownerID = NetworkObjectId,
             team = Health.Team
         };
         p.Init(projectileData);

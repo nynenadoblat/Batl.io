@@ -1,54 +1,66 @@
-using System.Collections;
-using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
-using Photon.Pun;
 
-
-[RequireComponent(typeof(PhotonView))]
-public class NetworkTransform : MonoBehaviour, IPunObservable
+[RequireComponent(typeof(NetworkObject))]
+public class NetworkTransform : NetworkBehaviour
 {
     [SerializeField]
-    private float minSyncPosSpeed = 10;
+    private float minSyncPosSpeed = 10f;
     [SerializeField]
-    private float minSyncRotSpeed = 70;
+    private float minSyncRotSpeed = 70f;
 
-    private new PhotonView networkView;
+    private readonly NetworkVariable<Vector3> netPosition = new(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner
+    );
 
-    private Vector3 receivedPos;
-    private Vector3 receivedRot;
+    private readonly NetworkVariable<Vector3> netRotation = new(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner
+    );
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
-        networkView = GetComponent<PhotonView>();
+        base.OnNetworkSpawn();
 
-        receivedPos = transform.position;
-        receivedRot = transform.rotation.eulerAngles;
+        if (IsOwner)
+        {
+            netPosition.Value = transform.position;
+            netRotation.Value = transform.rotation.eulerAngles;
+        }
+        else
+        {
+            if (netPosition.Value != default)
+            {
+                transform.position = netPosition.Value;
+                transform.rotation = Quaternion.Euler(netRotation.Value);
+            }
+        }
     }
 
     private void Update()
     {
-        if (!networkView.IsMine)
+        if (IsOwner)
         {
-            float syncPosSpeed = Mathf.Clamp(Vector3.Distance(transform.position, receivedPos), minSyncPosSpeed, float.MaxValue);
-            transform.position = Vector3.MoveTowards(transform.position, receivedPos, Time.deltaTime * syncPosSpeed);
+            if (Vector3.Distance(transform.position, netPosition.Value) > 0.005f)
+            {
+                netPosition.Value = transform.position;
+            }
 
-            float syncRotSpeed = Mathf.Clamp(Vector3.Distance(transform.rotation.eulerAngles, receivedRot), minSyncRotSpeed, float.MaxValue);
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(receivedRot), Time.deltaTime * syncRotSpeed);
-        }
-    }
-
-
-    public void OnPhotonSerializeView(PhotonStream stream, PhotonMessageInfo info)
-    {
-        if (stream.IsWriting)
-        {
-            stream.SendNext(transform.position);
-            stream.SendNext(transform.rotation.eulerAngles);
+            if (Vector3.Distance(transform.rotation.eulerAngles, netRotation.Value) > 0.1f)
+            {
+                netRotation.Value = transform.rotation.eulerAngles;
+            }
         }
         else
         {
-            receivedPos = (Vector3)stream.ReceiveNext();
-            receivedRot = (Vector3)stream.ReceiveNext();
+            float syncPosSpeed = Mathf.Clamp(Vector3.Distance(transform.position, netPosition.Value), minSyncPosSpeed, float.MaxValue);
+            transform.position = Vector3.MoveTowards(transform.position, netPosition.Value, Time.deltaTime * syncPosSpeed);
+
+            float syncRotSpeed = Mathf.Clamp(Vector3.Distance(transform.rotation.eulerAngles, netRotation.Value), minSyncRotSpeed, float.MaxValue);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.Euler(netRotation.Value), Time.deltaTime * syncRotSpeed);
         }
     }
 }

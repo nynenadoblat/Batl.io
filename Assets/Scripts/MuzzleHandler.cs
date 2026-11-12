@@ -14,8 +14,6 @@ public class MuzzleHandler : MonoBehaviour
 
     [SerializeField] Muzzle[] muzzles;
 
-    
-
     Player player;
 
     float currentRate;
@@ -42,7 +40,7 @@ public class MuzzleHandler : MonoBehaviour
             baseDamege = (int)((float)player.baseDamage * damageMultiplier),
             critChance = (int)((float)player.CritChance * critChanceMultiplier),
             speed = (int)((float)player.SpeedProjectile * projectileSpeedMultiplier),
-            ownerID = player.photonView.ViewID,
+            ownerID = player.NetworkObjectId,
             team = player.Health.Team,
         };
 
@@ -53,8 +51,6 @@ public class MuzzleHandler : MonoBehaviour
             angle += Random.Range(-precision, precision);
             var dir = new Vector3(Mathf.Sin(Mathf.Deg2Rad * angle), 0, Mathf.Cos(Mathf.Deg2Rad * angle));
 
-            //dir.y *= -1f;
-            //float angleTarget = Vector2.SignedAngle(dir, Vector2.up);
             dir.Normalize();
             var pos = muzzles[i].Point.position;
             var projectile = ProjectilePool.Get(pos);
@@ -62,12 +58,6 @@ public class MuzzleHandler : MonoBehaviour
             projectileData.mat = GameManager.Instance.MineTeam == player.Health.Team ? muzzles[i].friendly : muzzles[i].enemy;
 
             projectile.Init(projectileData);
-
-            //var prefab = GameManager.Instance.MineTeam == health.Team ? fireEffectFriendlyPrefab : fireEffectEnemyPrefab;
-            //var effect = MuzzleEffectPool.Spawn(prefab, transform);
-            //effect.transform.forward = dir;
         }
     }
-
-    
 }

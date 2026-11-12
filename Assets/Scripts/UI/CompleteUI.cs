@@ -25,7 +25,7 @@ public class CompleteUI : MonoBehaviour
         btnOk.onClick.AddListener(Ok_Clicked);
 
         labelVictory.text = status == CompleteStatus.Victory ? "Victory" : "Defeat";
-        print("игроков " + GameManager.Instance.allPlayers.Count);
+        print("пїЅпїЅпїЅпїЅпїЅпїЅпїЅ " + GameManager.Instance.allPlayers.Count);
         foreach (var item in GameManager.Instance.allPlayers)
         {
             var entry = new PlayerEntry
@@ -38,7 +38,7 @@ public class CompleteUI : MonoBehaviour
             };
             players.Add(entry);
         }
-        print("респаунов " + GameManager.Instance.respawnQueue.Count);
+        print("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ " + GameManager.Instance.respawnQueue.Count);
         foreach (var item in GameManager.Instance.respawnQueue)
         {
             var entry = new PlayerEntry
@@ -73,7 +73,7 @@ public class CompleteUI : MonoBehaviour
 
     private void Ok_Clicked()
     {
-        Photon.Pun.PhotonNetwork.LeaveRoom();
+        MultiplayerManager.Instance.Leave();
 
         Advertising.ShowVideoAd();
         //UnityEngine.SceneManagement.SceneManager.LoadScene(0);

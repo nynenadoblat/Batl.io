@@ -1,10 +1,9 @@
-using Photon.Pun;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
 
-public class Projectile : MonoBehaviourPun
+public class Projectile : MonoBehaviour
 {
     [SerializeField] LayerMask collisionMask;
     [SerializeField] float speed = 15f;
@@ -16,7 +15,7 @@ public class Projectile : MonoBehaviourPun
 
     MeshRenderer mesh;
 
-    public int OwnerId { get; set; }
+    public ulong OwnerId { get; set; }
 
     [field: SerializeField]
     public Team Team { get; set; }
@@ -57,20 +56,16 @@ public class Projectile : MonoBehaviourPun
 
     private void Update()
     {
-        if (photonView.IsMine)
+        transform.position += speed * Time.deltaTime * moveDir;
+
+        lofetime += Time.deltaTime;
+
+        if (lofetime > 1.5f)
         {
-            transform.position += speed * Time.deltaTime * moveDir;
-
-            lofetime += Time.deltaTime;
-
-            if (lofetime > 1.5f)
-            {
-                ProjectilePool.Set(this);
-            }
-
-            CheckCollision();
+            ProjectilePool.Set(this);
         }
 
+        CheckCollision();
     }
 
     void CheckCollision()
@@ -107,7 +102,7 @@ public class Projectile : MonoBehaviourPun
 
     void CalculateDamage()
     {
-        int critChance = projectileData?.critChance ?? 5;// HOT FIX при стопе игры
+        int critChance = projectileData?.critChance ?? 5;
         if (Random.Range(0, 100) < critChance)
         {
             dmg *= 2;
@@ -121,7 +116,7 @@ public class ProjectileData
     public int baseDamege = 1;
     public int critChance = 5;
     public int speed;
-    public int ownerID;
+    public ulong ownerID;
     public Team team;
     public Material mat;
 }

@@ -4,7 +4,7 @@ using UnityEngine.UI;
 using UnityEngine;
 using System.Linq;
 using System;
-using Photon.Pun;
+using Unity.Netcode;
 using TMPro;
 using static Settings;
 
@@ -168,7 +168,7 @@ public class UI : MonoBehaviour
         joystick.gameObject.SetActive(false);
         perkHandler.Clear();
 
-        if (PhotonNetwork.CurrentRoom.Players.Count - 1 == 0)
+        if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.Count <= 1)
         {
             LeanTween.delayedCall(1f, () =>
             {
@@ -206,7 +206,7 @@ public class UI : MonoBehaviour
             (
                 r =>
                 !r.isAI &&
-                int.Parse($"{r.viewID}".Substring(0, 1)) == PhotonNetwork.LocalPlayer.ActorNumber
+                r.name == LobbyManager.GetNickname()
             );
             mineRespawnData.usedPerks.Add(perkID);
         }
@@ -319,7 +319,7 @@ public class UI : MonoBehaviour
     {
         infoRuneSpawned.SetActive(false);
 
-        if (player.Nickname == PhotonNetwork.NickName)
+        if (player.Nickname == LobbyManager.GetNickname())
         {
             runeEffect.SetActive(true);
         }
@@ -357,7 +357,7 @@ public class UI : MonoBehaviour
 
     void UpdateLvlBar()
     {
-        labelLvl.text = $"{playerMine.Lvl} Óð.";
+        labelLvl.text = $"{playerMine.Lvl} ï¿½ï¿½.";
 
         float thresold = 10 + Mathf.Pow(playerMine.Lvl, 1.3f);
         expBar.value = playerMine.Score / thresold;

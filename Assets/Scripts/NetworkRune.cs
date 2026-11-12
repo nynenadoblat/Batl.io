@@ -1,48 +1,27 @@
-using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
-using Photon.Pun;
-using System;
+using Unity.Netcode;
 
-public class NetworkRune : MonoBehaviourPun
+public class NetworkRune : NetworkBehaviour
 {
-    private void Awake()
+    public void RuneTakedOnServer(Player player)
     {
-        EventsHolder.runeTaked.AddListener(Rune_Taked);
-        EventsHolder.runeEnded.AddListener(Rune_Ended);
+        RuneTakedClientRpc(player.NetworkObjectId);
     }
 
-    private void Start()
+    public void RuneEndedOnServer(Player player)
     {
-        photonView.RegisterMethod<int>(EventCode.RuneTaked, NetworkRune_Taked);
-        photonView.RegisterMethod<int>(EventCode.RuneEnded, NetworkRune_Ended);
+        RuneEndedClientRpc(player.NetworkObjectId);
     }
 
-    private void NetworkRune_Ended(int runeOwnerID)
+    [ClientRpc]
+    private void RuneTakedClientRpc(ulong takedViewID)
     {
+        if (IsServer) return;
+
+        bool playerFound = false;
         foreach (var player in GameManager.Instance.allPlayers)
         {
-            if (!player)
-                continue;
-
-            if (player.photonView.ViewID == runeOwnerID)
-            {
-                player.RuneEnded();
-                EventsHolder.runeEnded?.Invoke(player);
-            }
-        }
-    }
-
-    private void NetworkRune_Taked(int takedViewID)
-    {
-        var playerFound = false;
-
-        foreach (var player in GameManager.Instance.allPlayers)
-        {
-            if (!player)
-                continue;
-
-            if (player.photonView.ViewID == takedViewID)
+            if (player && player.NetworkObjectId == takedViewID)
             {
                 player.TakeRune();
                 GetComponent<Rune>().Take(player);
@@ -51,24 +30,29 @@ public class NetworkRune : MonoBehaviourPun
             }
         }
 
-        // MEGA просто пиздец какой-то фикс,
-        // в общем иногда мастер плеер не спавнится на клиенте
-        // если резко одновременно зайти в комнату
-        // и нужен хоть какой-то игрок чтобы руна пропала
-        if (!playerFound)
+        if (!playerFound && GameManager.Instance.allPlayers.Count > 0)
         {
-            var randomPlayer = GameManager.Instance.allPlayers.Find(p => p.Nickname != PhotonNetwork.NickName);
-            GetComponent<Rune>().Take(randomPlayer);
+            var first = GameManager.Instance.allPlayers.Find(p => p != null);
+            if (first != null)
+            {
+                GetComponent<Rune>().Take(first);
+            }
         }
     }
 
-    private void Rune_Taked(Player player)
+    [ClientRpc]
+    private void RuneEndedClientRpc(ulong takedViewID)
     {
-        photonView.RaiseEvent(EventCode.RuneTaked, player.photonView.ViewID);
-    }
+        if (IsServer) return;
 
-    private void Rune_Ended(Player player)
-    {
-        photonView.RaiseEvent(EventCode.RuneEnded, player.photonView.ViewID);
+        foreach (var player in GameManager.Instance.allPlayers)
+        {
+            if (player && player.NetworkObjectId == takedViewID)
+            {
+                player.RuneEnded();
+                EventsHolder.runeEnded?.Invoke(player);
+                break;
+            }
+        }
     }
 }

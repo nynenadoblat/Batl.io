@@ -1,15 +1,17 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Photon.Pun;
 using TMPro;
 using UnityEngine.UI;
 using UnityEngine.SceneManagement;
-using Photon.Realtime;
+using Unity.Netcode;
+using Unity.Netcode.Transports.UTP;
+using System.Net;
+using System.Net.Sockets;
 
-public class LobbyManager : MonoBehaviourPunCallbacks
+public class LobbyManager : MonoBehaviour
 {
-    [SerializeField] string sceneNameToload;
+    [SerializeField] string sceneNameToload = "Game";
 
     [Space(3)]
     [SerializeField] byte maxPlayers = 10;
@@ -23,189 +25,157 @@ public class LobbyManager : MonoBehaviourPunCallbacks
 
     [SerializeField] TMP_Text btnLabel;
 
-    ExitGames.Client.Photon.Hashtable roomProps;
-
-    public System.Action<string> onPhotonConnection;
+    public System.Action<string> onConnection;
 
     public static string disconectMsg;
+    public static string nickname = string.Empty;
 
-    void Awake()
+    private void Awake()
     {
         if (PlayerPrefs.HasKey("nick"))
         {
-            PhotonNetwork.NickName = PlayerPrefs.GetString("nick");
+            nickname = PlayerPrefs.GetString("nick");
         }
 
-        // Первоначальные настройки клиента, тупо спизжено из тутора
-        if (PhotonNetwork.NickName == string.Empty)
+        if (string.IsNullOrEmpty(nickname))
         {
             if (Language.Rus)
-                PhotonNetwork.NickName = "Игрок " + Random.Range(100, 999);
+                nickname = "Игрок " + Random.Range(100, 999);
             else
-                PhotonNetwork.NickName = "Player " + Random.Range(100, 999);
+                nickname = "Player " + Random.Range(100, 999);
+            PlayerPrefs.SetString("nick", nickname);
+        }
+
+        if (inputField != null)
+        {
+            inputField.text = nickname;
+            inputField.onValueChanged.AddListener(SetNick);
         }
 
         btnConnect.onClick.AddListener(JoinRoom);
 
-        //PhotonNetwork.AuthValues = new AuthenticationValues(PhotonNetwork.NickName);
-        if (!PhotonNetwork.IsConnected)
+        if (!string.IsNullOrEmpty(disconectMsg))
         {
-            PhotonNetwork.AutomaticallySyncScene = true;
-            PhotonNetwork.GameVersion = "1";
-
-            PhotonNetwork.SerializationRate = 30;
-            PhotonNetwork.SendRate = 60;
-
-            PhotonNetwork.ConnectUsingSettings();
-            // ________________________________________________________
-            roomProps = new ExitGames.Client.Photon.Hashtable();
-
-            roomProps["idi_naxyi"] = PhotonNetwork.GameVersion;
-
-            
-            btnConnect.gameObject.SetActive(false);
+            Log(disconectMsg);
         }
-        else
-        {
-            //OnApplicationPause(false);
-            btnConnect.gameObject.SetActive(true);
-        }
-
-        var ebat = FindObjectOfType<Advertising>();
-        ebat.onVideoClosed += () => PhotonNetwork.ConnectUsingSettings();
-
-        PhotonNetwork.KeepAliveInBackground = 180;
-
-        Log(disconectMsg);
     }
 
     public static string GetNickname()
     {
-        return PhotonNetwork.NickName;
+        if (!string.IsNullOrEmpty(nickname))
+            return nickname;
+
+        if (PlayerPrefs.HasKey("nick"))
+        {
+            nickname = PlayerPrefs.GetString("nick");
+            return nickname;
+        }
+
+        nickname = (Language.Rus ? "Игрок " : "Player ") + Random.Range(100, 999);
+        PlayerPrefs.SetString("nick", nickname);
+        return nickname;
     }
 
     public static void SetNick(string value)
     {
-        PhotonNetwork.NickName = value;
-    }
-
-    public override void OnConnectedToMaster()
-    {
-        Log("Некий хуежуй: " + PhotonNetwork.NickName + " присоеденился к пиздатой игруле");
-        onPhotonConnection?.Invoke(PhotonNetwork.NickName);
-        btnConnect.gameObject.SetActive(true);
-    }
-
-    public override void OnConnected()
-    {
-        Log("шо блять?");
-    }
-
-    void CreateRoom()
-    {  
-        string[] props = new string[1];
-        props[0] = "idi_naxyi";
-
-        PhotonNetwork.CreateRoom(null, new RoomOptions
-        {
-            MaxPlayers = maxPlayers,
-            CleanupCacheOnLeave = false,
-            IsOpen = true,
-            IsVisible = true,
-            //CustomRoomProperties = roomProps,
-            //CustomRoomPropertiesForLobby = props
-        });
+        nickname = value;
+        PlayerPrefs.SetString("nick", value);
     }
 
     public void JoinRoom()
     {
+        btnConnect.interactable = false;
         btnLabel.text = Language.Rus ? "Поиск игры.." : "Game searching..";
 
-        print(PhotonNetwork.CountOfRooms);
-        print(PhotonNetwork.CurrentRoom);
-        
-        PhotonNetwork.JoinRandomRoom();
-        //PhotonNetwork.JoinRandomRoom(roomProps, maxPlayers);
+        StartCoroutine(StartNetworkFlow());
     }
 
-    public override void OnJoinRandomFailed(short returnCode, string message)
+    private IEnumerator StartNetworkFlow()
     {
-        CreateRoom();
-        print("Не получилось заджойнитья");
-    }
-
-    public override void OnJoinedRoom()
-    {
-        print("Припиздяшил, Уебок " + PhotonNetwork.NickName);
-
-        float waitTime = 0;
-
-        StartCoroutine(PlayersWaiting());
-
-        IEnumerator PlayersWaiting()
+        var netManager = NetworkManager.Singleton;
+        if (netManager == null)
         {
-            while(waitTime < 3)
+            Log("NetworkManager not found!");
+            btnConnect.interactable = true;
+            yield break;
+        }
+
+        var transport = netManager.GetComponent<UnityTransport>();
+
+        string targetAddress = "127.0.0.1";
+        ushort targetPort = 7777;
+
+        bool isExplicitRemoteIp = false;
+        if (inputField != null && IPAddress.TryParse(inputField.text.Trim(), out var parsedIp))
+        {
+            targetAddress = parsedIp.ToString();
+            isExplicitRemoteIp = true;
+        }
+
+        if (transport != null)
+        {
+            transport.SetConnectionData(targetAddress, targetPort);
+        }
+
+        if (isExplicitRemoteIp || !IsPortAvailable(targetPort))
+        {
+            Log(Language.Rus ? "Подключение к игре..." : "Connecting to host...");
+            netManager.StartClient();
+        }
+        else
+        {
+            Log(Language.Rus ? "Создание игры (Хост)..." : "Hosting game...");
+            netManager.StartHost();
+
+            float waitTime = 0;
+            while (waitTime < 2.5f)
             {
-                yield return null;
-
                 waitTime += Time.deltaTime;
-
                 if (waitTime % 1.1f > 0.55f)
                     btnLabel.text = Language.Rus ? "Поиск игры.." : "Game searching..";
                 else
                     btnLabel.text = Language.Rus ? "Поиск игры." : "Game searching.";
 
-
-                if (PhotonNetwork.CurrentRoom.PlayerCount > 1)
+                if (netManager.ConnectedClients.Count > 1)
                 {
                     break;
-                    //PhotonNetwork.LoadLevel(sceneNameToload);
                 }
+                yield return null;
             }
 
-            
-            PhotonNetwork.LoadLevel(sceneNameToload);
+            netManager.SceneManager.LoadScene(sceneNameToload, LoadSceneMode.Single);
         }
     }
 
-
-    public override void OnDisconnected(DisconnectCause cause)
+    private bool IsPortAvailable(int port)
     {
-        base.OnDisconnected(cause);
-
-        Log(cause.ToString());
-    }
-
-    private void OnApplicationPause(bool pause)
-    {
-        if (!pause)
+        try
         {
-            StartCoroutine(Connect());
+            using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
+            {
+                socket.Bind(new IPEndPoint(IPAddress.Any, port));
+                return true;
+            }
         }
-
-        IEnumerator Connect()
+        catch
         {
-            yield return new WaitForSeconds(0.3f);
-
-            PhotonNetwork.ConnectUsingSettings();
+            return false;
         }
     }
-
 
     private void Update()
     {
-//#if UNITY_EDITOR
         if (Input.GetKeyDown(KeyCode.R))
         {
             PlayerPrefs.DeleteAll();
         }
-//#endif
-    }
-    void Log(string msg)
-    {
-        logText.text += "\n";
-        logText.text += msg;
     }
 
-    
+    void Log(string msg)
+    {
+        if (logText != null && !string.IsNullOrEmpty(msg))
+        {
+            logText.text += "\n" + msg;
+        }
+    }
 }

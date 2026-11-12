@@ -1,10 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using Photon.Pun;
+using Unity.Netcode;
 using static Settings;
 
-public class Rune : MonoBehaviour
+public class Rune : NetworkBehaviour
 {
     [SerializeField] GameObject effectTakedPrefab;
 
@@ -21,7 +21,7 @@ public class Rune : MonoBehaviour
 
     private void Update()
     {
-        if (!taked && MultiplayerManager.IsMaster)
+        if (!taked && IsServer)
         {
             var players = GameManager.Instance.allPlayers;
 
@@ -34,9 +34,12 @@ public class Rune : MonoBehaviour
                 if (dist < 1.37f)
                 {
                     player.TakeRune();
-
-                    Take(player);   
-
+                    Take(player);
+                    var netRune = GetComponent<NetworkRune>();
+                    if (netRune != null)
+                    {
+                        netRune.RuneTakedOnServer(player);
+                    }
                     break;
                 }
             }
@@ -46,11 +49,19 @@ public class Rune : MonoBehaviour
         {
             currentDuration += Time.deltaTime;
 
-            if(currentDuration > RUNE_DURATION && MultiplayerManager.IsMaster)
+            if (currentDuration > RUNE_DURATION && IsServer)
             {
-                PhotonNetwork.Destroy(gameObject);
-                owner.RuneEnded();
-                EventsHolder.runeEnded?.Invoke(owner);
+                if (owner)
+                {
+                    owner.RuneEnded();
+                    EventsHolder.runeEnded?.Invoke(owner);
+                    var netRune = GetComponent<NetworkRune>();
+                    if (netRune != null)
+                    {
+                        netRune.RuneEndedOnServer(owner);
+                    }
+                }
+                GetComponent<NetworkObject>().Despawn(true);
             }
         }
     }

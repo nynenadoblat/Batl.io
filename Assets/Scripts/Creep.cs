@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using UnityEngine.AI;
 using UnityEngine;
 using System.Linq;
-using Photon.Pun;
+using Unity.Netcode;
 
-public class Creep : MonoBehaviourPun
+public class Creep : NetworkBehaviour
 {
     [SerializeField] HealthComponent health;
     [SerializeField] Projectile projectilePrefab;
@@ -39,7 +39,7 @@ public class Creep : MonoBehaviourPun
 
     private void Update()
     {
-        if (!MultiplayerManager.IsMaster)
+        if (!IsServer)
             return;
 
         timerUpdateTarget += Time.deltaTime;
@@ -60,7 +60,6 @@ public class Creep : MonoBehaviourPun
             if (distance && agent.desiredVelocity.magnitude < 0.5f)
             {
                 Fire();
-                //LookAt(target.transform.position);
 
                 Vector3 targetDir = target.transform.position - transform.position;
                 targetDir.y = 0.0f;
@@ -68,8 +67,6 @@ public class Creep : MonoBehaviourPun
 
             }
         }
-
-        
     }
 
     void Fire()
@@ -78,13 +75,13 @@ public class Creep : MonoBehaviourPun
         {
             var dir = ((target.transform.position) - transform.position).normalized;
             var pos = transform.position - new Vector3(0, 0.9f, 0);
-            var p = MultiplayerManager.Spawn(projectilePrefab, pos);
+            var p = Instantiate(projectilePrefab, pos, Quaternion.identity);
             var projectileData = new ProjectileData
             {
                 critChance = 10,
                 baseDamege = 1,
                 direction = dir,
-                ownerID = photonView.ViewID,
+                ownerID = NetworkObjectId,
                 team = Health.Team
             };
             p.Init(projectileData);
@@ -94,10 +91,16 @@ public class Creep : MonoBehaviourPun
 
     void FindTarget()
     {
-        var targets = GameManager.Instance.citadels.Where(c => c.Health.Team != health.Team).Select(t => t.Health).ToList();
+        var targets = GameManager.Instance.citadels.Where(c => c && c.Health.Team != health.Team).Select(t => t.Health).ToList();
 
-        target = targets[0];
-
+        if (targets.Count > 0)
+        {
+            target = targets[0];
+        }
+        else
+        {
+            target = null;
+        }
     }
 
     private void LookAt(Vector3 t)
@@ -120,8 +123,9 @@ public class Creep : MonoBehaviourPun
         }
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
+        base.OnDestroy();
         EventsHolder.creepAnniged?.Invoke(health);
     }
 }

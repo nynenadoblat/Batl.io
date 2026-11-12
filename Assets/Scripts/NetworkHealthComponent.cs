@@ -1,127 +1,182 @@
-using System.Collections;
-using System.Collections.Generic;
+using Unity.Netcode;
 using UnityEngine;
-using Photon.Pun;
-using System;
 
-public class NetworkHealthComponent : MonoBehaviourPunCallbacks
+[RequireComponent(typeof(HealthComponent))]
+public class NetworkHealthComponent : NetworkBehaviour
 {
-    HealthComponent health;
+    private HealthComponent health;
+
+    private readonly NetworkVariable<int> netHealth = new(
+        100,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private readonly NetworkVariable<int> netMaxHealth = new(
+        100,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private readonly NetworkVariable<Team> netTeam = new(
+        Team.One,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     private void Awake()
     {
         health = GetComponent<HealthComponent>();
-        health.onDamage += Damaged;
-        health.onIncreaseHealth += Health_Increased;
-        health.onAnniged += Anniged;
+        health.onDamage += OnLocalDamage;
+        health.onIncreaseHealth += OnLocalHealthIncreased;
+        health.onAnniged += OnLocalAnniged;
     }
 
-    private void Start()
+    public override void OnNetworkSpawn()
     {
-        photonView.RegisterMethod<IntIntIntOwnerNetworkData>(EventCode.Damage, Network_Damaged, true);
-        photonView.RegisterMethod<IntOwnerNetworkData>(EventCode.IncreaseHealth, NetworkIncreaseHealth_Received, true);
-        photonView.RegisterMethod<IntOwnerNetworkData>(EventCode.TeamIdx, NetworkTeamIdx_Received);
-        photonView.RegisterMethod<IntIntOwnerNetworkData>(EventCode.Anniged, NetworkAnnigedData_Received);
+        base.OnNetworkSpawn();
 
-        RaiseTeamIdx();
-    }
+        health.OwnerID = NetworkObjectId;
 
-    private void NetworkIncreaseHealth_Received(IntOwnerNetworkData data)
-    {
-        if(data.viewID == photonView.ViewID)
+        if (IsServer)
         {
-            health.IncreaseMaxHealth(data.value, true);
+            netHealth.Value = health.Value;
+            netMaxHealth.Value = health.MaxValue;
+            netTeam.Value = health.Team;
         }
-    }
-
-    private void NetworkTeamIdx_Received(IntOwnerNetworkData data)
-    {
-        if(photonView.ViewID == data.viewID)
+        else
         {
-            health.Team = (Team)data.value;
-        }
-    }
-
-    private void Health_Increased(int value)
-    {
-        var data = new IntOwnerNetworkData
-        {
-            value = value,
-            viewID = photonView.ViewID,
-        };
-        photonView.RaiseEvent(EventCode.IncreaseHealth, data);
-    }
-
-    public override void OnPlayerEnteredRoom(Photon.Realtime.Player newPlayer)
-    {
-        base.OnPlayerEnteredRoom(newPlayer);
-
-        RaiseTeamIdx();
-    }
-
-    void RaiseTeamIdx()
-    {
-        if (!health.IsAlive)
-            return;
-
-        StartCoroutine(Delay());
-
-        IEnumerator Delay()
-        {
-            yield return new WaitForSeconds(0.7f);
-
-            if (gameObject)
+            if (netMaxHealth.Value != health.MaxValue)
             {
-                var data = new IntOwnerNetworkData
-                {
-                    value = (int)health.Team,
-                    viewID = photonView.ViewID
-                };
-                photonView.RaiseEvent(EventCode.TeamIdx, data);
+                health.IncreaseMaxHealth(netMaxHealth.Value - health.MaxValue, true);
+            }
+            health.Team = netTeam.Value;
+        }
+
+        netHealth.OnValueChanged += OnHealthChanged;
+        netMaxHealth.OnValueChanged += OnMaxHealthChanged;
+        netTeam.OnValueChanged += OnTeamChanged;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        netHealth.OnValueChanged -= OnHealthChanged;
+        netMaxHealth.OnValueChanged -= OnMaxHealthChanged;
+        netTeam.OnValueChanged -= OnTeamChanged;
+        base.OnNetworkDespawn();
+    }
+
+    private void OnHealthChanged(int previousValue, int newValue)
+    {
+        if (!IsServer)
+        {
+            int delta = newValue - health.Value;
+            if (delta < 0)
+            {
+                health.DamageNetworkReceived(-delta, health.LastDamagedOwnerID, 0);
+            }
+            else if (delta > 0)
+            {
+                health.Heal();
             }
         }
     }
 
-    private void Network_Damaged(IntIntIntOwnerNetworkData data)
+    private void OnMaxHealthChanged(int previousValue, int newValue)
     {
-        if(data.viewID == photonView.ViewID)
+        if (!IsServer)
         {
-            health.DamageNetworkReceived(data.value_1, data.value_2, data.value_3);
-        }
-    }
-
-    private void Damaged(int value, int ownerID)
-    {
-        var data = new IntIntIntOwnerNetworkData
-        {
-            value_1 = value,
-            value_2 = ownerID,
-            //value_3 = потом надо добавить время дамага
-            viewID = photonView.ViewID 
-        };
-
-        photonView.RaiseEventAll(EventCode.Damage, data);
-    }
-
-    private void NetworkAnnigedData_Received(IntIntOwnerNetworkData data)
-    {
-        if(data.viewID == photonView.ViewID)
-        {
-            if(health.AnnigedTime > data.value_2)
+            int delta = newValue - health.MaxValue;
+            if (delta != 0)
             {
-                health.LastDamagedOwnerID = data.value_1;
+                health.IncreaseMaxHealth(delta, true);
             }
         }
     }
 
-    private void Anniged(int obj)
+    private void OnTeamChanged(Team previousValue, Team newValue)
     {
-        var data = new IntIntOwnerNetworkData
+        health.Team = newValue;
+    }
+
+    public void SetTeam(Team team)
+    {
+        if (IsServer)
         {
-            value_1 = health.LastDamagedOwnerID,
-            value_2 = PhotonNetwork.ServerTimestamp,
-            viewID = photonView.ViewID,
-        };
-        photonView.RaiseEventAll(EventCode.Anniged, data);
+            netTeam.Value = team;
+            health.Team = team;
+        }
+    }
+
+    private void OnLocalDamage(int value, ulong ownerID)
+    {
+        if (IsServer)
+        {
+            netHealth.Value = health.Value;
+            DamageReceivedClientRpc(value, ownerID);
+        }
+        else
+        {
+            RequestDamageServerRpc(value, ownerID);
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestDamageServerRpc(int value, ulong ownerID)
+    {
+        health.Damage(value, ownerID);
+        netHealth.Value = health.Value;
+        DamageReceivedClientRpc(value, ownerID);
+    }
+
+    [ClientRpc]
+    private void DamageReceivedClientRpc(int value, ulong ownerID)
+    {
+        if (!IsServer)
+        {
+            health.DamageNetworkReceived(value, ownerID, 0);
+        }
+    }
+
+    private void OnLocalHealthIncreased(int value)
+    {
+        if (IsServer)
+        {
+            netMaxHealth.Value = health.MaxValue;
+            netHealth.Value = health.Value;
+        }
+        else
+        {
+            RequestIncreaseHealthServerRpc(value);
+        }
+    }
+
+    [ServerRpc(RequireOwnership = false)]
+    private void RequestIncreaseHealthServerRpc(int value)
+    {
+        health.IncreaseMaxHealth(value, true);
+        netMaxHealth.Value = health.MaxValue;
+        netHealth.Value = health.Value;
+    }
+
+    private void OnLocalAnniged(ulong lastDamagedOwnerID)
+    {
+        if (IsServer)
+        {
+            AnnigedClientRpc(lastDamagedOwnerID);
+        }
+    }
+
+    [ClientRpc]
+    private void AnnigedClientRpc(ulong lastDamagedOwnerID)
+    {
+        if (!IsServer)
+        {
+            health.LastDamagedOwnerID = lastDamagedOwnerID;
+            if (health.IsAlive)
+            {
+                health.Annigilaion(true);
+            }
+        }
     }
 }

@@ -2,10 +2,10 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using System.Linq;
-using Photon.Pun;
+using Unity.Netcode;
 using System;
 
-public class Player : MonoBehaviourPun
+public class Player : NetworkBehaviour
 {
     [field: SerializeField]
     public int ScoreTotal { get; set; }
@@ -37,7 +37,7 @@ public class Player : MonoBehaviourPun
     [SerializeField] Material friendly;
     [SerializeField] Material enemy;
 
-    [Header("Эволюция танка")]
+    [Header("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ")]
     [SerializeField] TankTypeSet[] typesSets;
 
 
@@ -85,11 +85,11 @@ public class Player : MonoBehaviourPun
         
         EventsHolder.playerSpawnedAny?.Invoke(this);
 
-        name += photonView.ViewID;
+        name += NetworkObjectId;
 
         Health.onAnniged += Anniged;
         Health.onTeamSet += Team_Seted;
-        Health.OwnerID = photonView.ViewID;
+        Health.OwnerID = NetworkObjectId;
 
         EventsHolder.playerAnniged.AddListener(OtherPlayer_Anniged);
         EventsHolder.creepAnniged.AddListener(Creepochek_Anniged);
@@ -118,9 +118,9 @@ public class Player : MonoBehaviourPun
 
     private void Creepochek_Anniged(HealthComponent health)
     {
-        var isMeAnnigilator = photonView.ViewID == health.LastDamagedOwnerID;
+        var isMeAnnigilator = NetworkObjectId == health.LastDamagedOwnerID;
 
-        if (isMeAnnigilator && photonView.IsMine)
+        if (isMeAnnigilator && IsOwner)
         {
             ScoreTotal += health.GetComponent<Creepochek>().score;
             Score += health.GetComponent<Creepochek>().score;
@@ -132,7 +132,7 @@ public class Player : MonoBehaviourPun
 
     public void Team_Seted(Team team)
     {
-        //print($"тима выбрана {team}");
+        //print($"пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ {team}");
         if(GameManager.Instance.MineTeam == team)
         {
             teamIndicator.material = friendly;
@@ -145,9 +145,9 @@ public class Player : MonoBehaviourPun
 
     private void OtherPlayer_Anniged(Player annigedPlayer)
     {
-        var isMeAnnigilator = photonView.ViewID == annigedPlayer.Health.LastDamagedOwnerID;
+        var isMeAnnigilator = NetworkObjectId == annigedPlayer.Health.LastDamagedOwnerID;
         
-        if (isMeAnnigilator && photonView.IsMine)
+        if (isMeAnnigilator && IsOwner)
         {
             CountAnniges++;
             ScoreTotal += (int)((float)annigedPlayer.ScoreTotal / 1.3f);
@@ -247,12 +247,12 @@ public class Player : MonoBehaviourPun
         if (!silentMode)
             onPerkPick?.Invoke(perk);
 
-        //print($"ща будем жарить {perk}");
+        //print($"пїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ {perk}");
     }
 
     public void UpgradeProperty(PerkID perk, bool silentMode = false)
     {
-        //print(Nickname + " заебенил " + perk + " ==========================");
+        //print(Nickname + " пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ " + perk + " ==========================");
         switch (perk)
         {
             case PerkID.Attack:
@@ -328,15 +328,24 @@ public class Player : MonoBehaviourPun
         isRuneUsed = false;
     }
 
-    private void Anniged(int annigilatorID)
+    private void Anniged(ulong annigilatorID)
     {
         CountAnniged++;
         EventsHolder.playerAnniged?.Invoke(this);
         annigedNotifed = true;
 
-        if (photonView.IsMine)
+        if (IsOwner)
         {
-            PhotonNetwork.Destroy(photonView);
+            if (IsServer) { NetworkObject.Despawn(true); } else { RequestDespawnServerRpc(); }
+        }
+    }
+
+    [Rpc(SendTo.Server)]
+    private void RequestDespawnServerRpc()
+    {
+        if (NetworkObject != null && NetworkObject.IsSpawned)
+        {
+            NetworkObject.Despawn(true);
         }
     }
 
@@ -419,10 +428,11 @@ public class Player : MonoBehaviourPun
         //onSetNickname?.Invoke
     }
 
-    private void OnDestroy()
+    public override void OnDestroy()
     {
-        //print("Захуярили, суки.. " + Nickname);
-        if (!photonView.IsMine && !annigedNotifed && Time.time > 7)
+        base.OnDestroy();
+        //print("пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅ.. " + Nickname);
+        if (!IsOwner && !annigedNotifed && Time.time > 7)
         {
             EventsHolder.playerAnniged?.Invoke(this);
         }

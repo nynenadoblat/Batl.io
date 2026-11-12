@@ -18,7 +18,7 @@ public class ProjectilePool : MonoBehaviour
 
     public static Projectile Get(Vector3 pos)
     {
-        if(Instance.pool.Count > 0)
+        if (Instance.pool.Count > 0)
         {
             var p = Instance.pool[0];
             p.gameObject.SetActive(true);
@@ -28,8 +28,7 @@ public class ProjectilePool : MonoBehaviour
         }
         else
         {
-            var p = MultiplayerManager.Spawn(Instance.prefab, pos);
-            
+            var p = Instantiate(Instance.prefab, pos, Quaternion.identity);
             return p;
         }
     }

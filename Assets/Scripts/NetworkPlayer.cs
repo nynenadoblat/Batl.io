@@ -1,151 +1,156 @@
 using System.Collections;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
-using Photon.Pun;
-using System;
+using Unity.Netcode;
+using Unity.Collections;
 
-public class NetworkPlayer : MonoBehaviourPunCallbacks
+public class NetworkPlayer : NetworkBehaviour
 {
-    public int ViewID => photonView.ViewID;
+    public ulong ViewID => NetworkObjectId;
 
     Player player;
-    Coroutine dataSender;
 
-    private void Awake()
+    private readonly NetworkVariable<FixedString64Bytes> networkNickname = new(
+        default,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    private readonly NetworkVariable<int> networkProfileIndex = new(
+        -1,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
+    public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+
         player = GetComponent<Player>();
 
         if (GetComponent<BehaviourPlayer>())
         {
-            int idx = photonView.OwnerActorNr % 2;
-            player.Health.Team = (Team)idx;
-
-            if (photonView.IsMine)
+            if (IsServer)
             {
-                EventsHolder.mineTeamPicked?.Invoke((Team)idx);
+                int idx = (int)(OwnerClientId % 2);
+                var team = (Team)idx;
+                var netHealth = GetComponent<NetworkHealthComponent>();
+                if (netHealth != null)
+                {
+                    netHealth.SetTeam(team);
+                }
+                else
+                {
+                    player.Health.Team = team;
+                }
+            }
 
-                player.Nickname = PhotonNetwork.NickName;
+            if (IsOwner)
+            {
+                var team = player.Health.Team;
+                EventsHolder.mineTeamPicked?.Invoke(team);
+
+                string nick = LobbyManager.GetNickname();
+                player.Nickname = nick;
+                SetNicknameServerRpc(nick);
             }
             else
             {
-                var p = PhotonNetwork.CurrentRoom.Players[photonView.OwnerActorNr];
-                player.Nickname = p.NickName;
+                if (!networkNickname.Value.IsEmpty)
+                {
+                    player.Nickname = networkNickname.Value.ToString();
+                }
             }
-
-            //EventsHolder.teamPicked?.Invoke(player.Health);
-            //player.Team_Seted((Team)idx);
         }
 
         var ai = GetComponent<BehaviourAI>();
         if (ai)
         {
-            ai.onProfileSeted += RaiseProfile;
-            photonView.RegisterMethod<IntOwnerNetworkData>(EventCode.Profile, NetworkProfile_Seted);
-        }
-
-        player.onPerkPick += Perk_Picked;
-
-        photonView.RegisterMethod<IntOwnerNetworkData>(EventCode.PerkPick, Network_PerkPick);
-        
-        //EventsHolder.onVictory.AddListener(Game_Completed);
-    }
-
-    
-
-    //private void Game_Completed(Team team)
-    //{
-    //    var data = new IntOwnerNetworkData
-    //    {
-    //        value = player.CountAnniges,
-    //        viewID = photonView.ViewID,
-    //    };
-    //    photonView.RaiseEventAll(EventCode.AllAnniges, data);
-    //}
-
-    private void NetworkProfile_Seted(IntOwnerNetworkData data)
-    {
-        if(data.viewID == photonView.ViewID)
-        {
-            var profile = Settings.aiProfiles[data.value];
-            player.GetComponent<BehaviourAI>().SetProfile(profile, data.value, true);
-        }
-    }
-
-    void RaiseProfile(int idx)
-    {
-        var data = new IntOwnerNetworkData
-        {
-            value = idx,
-            viewID = photonView.ViewID
-        };
-        photonView.RaiseEvent(EventCode.Profile, data);
-    }
-
-    private void Network_PerkPick(IntOwnerNetworkData data)
-    {
-        if(ViewID == data.viewID)
-        {
-            player.PickPerk((PerkID)data.value, true);
-            //print("Перк выбран где-то там");
-        }
-    }
-
-    private void Perk_Picked(PerkID perk)
-    {
-        IntOwnerNetworkData data = new()
-        {
-            value = (int)perk,
-            viewID = ViewID
-        };
-        photonView.RaiseEventAll(EventCode.PerkPick, data);
-    }
-
-    public override void OnPlayerEnteredRoom(Photon.Realtime.Player newPlayer)
-    {
-        if (photonView.IsMine && player.Health.IsAlive)
-        {
-            dataSender = StartCoroutine(DataSender());
-
-            // Костыль
-            player.Move(transform.right);
-        }
-
-        IEnumerator DataSender()
-        {
-            // Перки
-            foreach (var perk in player.usedPerks)
+            if (IsServer)
             {
-                yield return new WaitForSeconds(0.37f);
-
-                Perk_Picked(perk);
+                ai.onProfileSeted += OnAIProfileSetServer;
             }
-
-            yield return new WaitForSeconds(0.37f);
-
-            var ai = GetComponent<BehaviourAI>();
-            if (ai)
+            else if (networkProfileIndex.Value >= 0 && networkProfileIndex.Value < Settings.aiProfiles.Count)
             {
-                RaiseProfile(ai.idxProfile);
+                var profile = Settings.aiProfiles[networkProfileIndex.Value];
+                ai.SetProfile(profile, networkProfileIndex.Value, true);
             }
+        }
 
-            dataSender = null;
+        player.onPerkPick += OnPerkPickedLocal;
+
+        networkNickname.OnValueChanged += OnNicknameChanged;
+        networkProfileIndex.OnValueChanged += OnProfileIndexChanged;
+    }
+
+    public override void OnNetworkDespawn()
+    {
+        networkNickname.OnValueChanged -= OnNicknameChanged;
+        networkProfileIndex.OnValueChanged -= OnProfileIndexChanged;
+        base.OnNetworkDespawn();
+    }
+
+    private void OnNicknameChanged(FixedString64Bytes previous, FixedString64Bytes current)
+    {
+        if (player != null && !current.IsEmpty)
+        {
+            player.Nickname = current.ToString();
         }
     }
 
-    private void Network_Anniged(int obj)
+    private void OnProfileIndexChanged(int previous, int current)
     {
-        
+        var ai = GetComponent<BehaviourAI>();
+        if (ai != null && current >= 0 && current < Settings.aiProfiles.Count)
+        {
+            var profile = Settings.aiProfiles[current];
+            ai.SetProfile(profile, current, true);
+        }
     }
 
-    private void Anniged()
+    private void OnAIProfileSetServer(int profileIdx)
     {
-        //photonView.RaiseEventAll(EventCode.Anniged, photonView.ViewID);
+        if (IsServer)
+        {
+            networkProfileIndex.Value = profileIdx;
+        }
     }
 
-    private void OnDestroy()
+    [ServerRpc]
+    private void SetNicknameServerRpc(FixedString64Bytes nick)
     {
-        if (dataSender != null)
-            StopCoroutine(dataSender);
+        networkNickname.Value = nick;
+        if (player != null)
+        {
+            player.Nickname = nick.ToString();
+        }
+    }
+
+    private void OnPerkPickedLocal(PerkID perk)
+    {
+        if (IsOwner)
+        {
+            PickPerkServerRpc((int)perk);
+        }
+    }
+
+    [ServerRpc]
+    private void PickPerkServerRpc(int perkInt)
+    {
+        PerkID perk = (PerkID)perkInt;
+        if (!IsOwner)
+        {
+            player.PickPerk(perk, true);
+        }
+        PickPerkClientRpc(perkInt);
+    }
+
+    [ClientRpc]
+    private void PickPerkClientRpc(int perkInt)
+    {
+        if (!IsOwner && !IsServer)
+        {
+            player.PickPerk((PerkID)perkInt, true);
+        }
     }
 }
