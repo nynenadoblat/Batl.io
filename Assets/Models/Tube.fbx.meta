@@ -1,4 +1,4 @@
-﻿fileFormatVersion: 2
+fileFormatVersion: 2
 guid: a58f3792499325a43a25dce82bbfc402
 ModelImporter:
   serializedVersion: 24600
@@ -50,7 +50,7 @@ ModelImporter:
     fileIdsGeneration: 2
     swapUVChannels: 0
     generateSecondaryUV: 0
-    useFileUnits: 1
+    useFileUnits: 0
     keepQuads: 0
     weldVertices: 1
     bakeAxisConversion: 0
