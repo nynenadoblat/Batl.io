@@ -84,14 +84,18 @@ public class UI : MonoBehaviour
         EventsHolder.onCrepochekDamage.AddListener(Crepochek_Damaged);
         EventsHolder.profileSeted.AddListener(Profile_Seted);
         EventsHolder.creepAnniged.AddListener(Creepochek_Anniged);
-        //EventsHolder.runeSpawned.AddListener(Rune_Spawned);
-        //EventsHolder.runeTaked.AddListener(Rune_Taked);
-        //EventsHolder.runeEnded.AddListener(Rune_Ended);
+        EventsHolder.runeSpawned.AddListener(Rune_Spawned);
+        EventsHolder.runeTaked.AddListener(Rune_Taked);
+        EventsHolder.runeEnded.AddListener(Rune_Ended);
 
-        //btnCam.onClick.AddListener(Cam_Clicked);
+        EventsHolder.onVictory.AddListener(Victory);
+        EventsHolder.onDefeat.AddListener(Defeat);
+        EventsHolder.clientGameCompleted.AddListener(() => GameComplete(CompleteStatus.Defeat));
 
-        //perkHandler.onPerkClick += Perk_Clicked;
-        //respawnTimer.onTimerNotify += RespawnTimer;
+        if (respawnTimer != null)
+        {
+            respawnTimer.onTimerNotify += RespawnTimer;
+        }
 
         if (MultiplayerManager.IsMaster)
             EventsHolder.clientCompleteDataReceived.AddListener(ClientData_Received);
@@ -185,27 +189,21 @@ public class UI : MonoBehaviour
 
     private void GameComplete(CompleteStatus status)
     {
-        if (!MultiplayerManager.IsMaster)
-            return;
-
         this.status = status;
 
-        respawnTimer.gameObject.SetActive(false);
+        if (respawnTimer != null) respawnTimer.gameObject.SetActive(false);
         if (joystick != null) joystick.gameObject.SetActive(false);
         if (joystickAttack != null) joystickAttack.gameObject.SetActive(false);
-        perkHandler.Clear();
+        if (perkHandler != null) perkHandler.Clear();
 
-        if (NetworkManager.Singleton != null && NetworkManager.Singleton.ConnectedClients.Count <= 1)
+        LeanTween.delayedCall(1f, () =>
         {
-            LeanTween.delayedCall(1f, () =>
+            if (complete)
             {
-                if (complete)
-                {
-                    complete.gameObject.SetActive(true);
-                    complete.Init(status, perkHandler.AllPerks);
-                }
-            });
-        }
+                complete.gameObject.SetActive(true);
+                complete.Init(status, perkHandler != null ? perkHandler.AllPerks : new());
+            }
+        });
     }
 
     public void NetworkGameComplete(CompleteStatus status)
@@ -283,6 +281,11 @@ public class UI : MonoBehaviour
                 joystickAttack.gameObject.SetActive(false);
                 joystickAttack.Reset();
             }
+            if (respawnTimer != null)
+            {
+                respawnTimer.gameObject.SetActive(true);
+                respawnTimer.Init();
+            }
         }
     }
 
@@ -304,6 +307,21 @@ public class UI : MonoBehaviour
         playerMine = player;
         playerMine.onUpgradeAvailable += Upgrade_Availabled;
         playerMine.onNextStageAvailable += NextStage_Availabled;
+
+        if (joystick != null)
+        {
+            joystick.gameObject.SetActive(true);
+            joystick.Reset();
+        }
+        if (joystickAttack != null)
+        {
+            joystickAttack.gameObject.SetActive(true);
+            joystickAttack.Reset();
+        }
+        if (respawnTimer != null)
+        {
+            respawnTimer.gameObject.SetActive(false);
+        }
     }
 
     private void NextStage_Availabled()

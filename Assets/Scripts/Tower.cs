@@ -66,7 +66,28 @@ public class Tower : NetworkBehaviour
             baseDamege = 7,
             direction = dir,
             ownerID = NetworkObjectId,
-            team = Health.Team
+            team = Health.Team,
+            isCosmetic = false
+        };
+        p.Init(projectileData);
+
+        FireClientRpc(pos, dir);
+    }
+
+    [ClientRpc]
+    private void FireClientRpc(Vector3 pos, Vector3 dir)
+    {
+        if (IsServer) return;
+
+        var p = ProjectilePool.Get(pos);
+        var projectileData = new ProjectileData
+        {
+            critChance = 7,
+            baseDamege = 7,
+            direction = dir,
+            ownerID = NetworkObjectId,
+            team = Health.Team,
+            isCosmetic = true
         };
         p.Init(projectileData);
     }

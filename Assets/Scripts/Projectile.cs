@@ -84,7 +84,7 @@ public class Projectile : MonoBehaviour
         {
             var health = h.collider.transform.root.GetComponent<HealthComponent>();
 
-            if (health && health.OwnerID != OwnerId)
+            if (health && health.OwnerID != OwnerId && health.Team != Team)
                 return true;
 
             return false;
@@ -93,10 +93,13 @@ public class Projectile : MonoBehaviour
 
         foreach (var hit in hits)
         {
-            CalculateDamage();
+            if (projectileData == null || !projectileData.isCosmetic)
+            {
+                CalculateDamage();
 
-            var health = hit.collider.transform.root.GetComponent<HealthComponent>();
-            health.Damage(dmg, OwnerId);
+                var health = hit.collider.transform.root.GetComponent<HealthComponent>();
+                health.Damage(dmg, OwnerId);
+            }
 
             ProjectilePool.Set(this);
             break;
@@ -125,4 +128,5 @@ public class ProjectileData
     public ulong ownerID;
     public Team team;
     public Material mat;
+    public bool isCosmetic;
 }

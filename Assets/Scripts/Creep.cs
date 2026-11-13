@@ -82,11 +82,33 @@ public class Creep : NetworkBehaviour
                 baseDamege = 1,
                 direction = dir,
                 ownerID = NetworkObjectId,
-                team = Health.Team
+                team = Health.Team,
+                isCosmetic = false
             };
             p.Init(projectileData);
             currentRate = 0;
+
+            FireClientRpc(pos, dir);
         }
+    }
+
+    [ClientRpc]
+    private void FireClientRpc(Vector3 pos, Vector3 dir)
+    {
+        if (IsServer) return;
+
+        var p = ProjectilePool.Get(pos);
+        var projectileData = new ProjectileData
+        {
+            critChance = 10,
+            baseDamege = 1,
+            direction = dir,
+            ownerID = NetworkObjectId,
+            team = Health.Team,
+            isCosmetic = true,
+            mat = (GameManager.Instance != null && GameManager.Instance.MineTeam == Health.Team) ? friendly : enemy
+        };
+        p.Init(projectileData);
     }
 
     void FindTarget()

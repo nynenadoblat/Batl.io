@@ -61,45 +61,47 @@ public class GameManager : MonoBehaviour
         EventsHolder.runeEnded.AddListener(Rune_Ended);
 
         Screen.sleepTimeout = SleepTimeout.NeverSleep;
-        //towers.ToList().ForEach(t => t.Health.onAnniged += Tower_Anniged);
-        //citadels.ToList().ForEach(t => t.Health.onAnniged += Citadel_Anniged);
+        if (citadels != null)
+        {
+            foreach (var c in citadels)
+            {
+                if (c != null && c.Health != null)
+                {
+                    c.Health.onAnniged += (annigerID) => Citadel_Anniged(c);
+                }
+            }
+        }
     }
 
     private void Start()
     {
         StartCoroutine(XeroboroSpawner());
         StartCoroutine(CheckRespawnQueue());
-        //StartCoroutine(SpawnRune());
+        StartCoroutine(SpawnRune());
     }
 
-    private void Citadel_Anniged(int timaAnnigerID)
+    private void Citadel_Anniged(Citadel destroyedCitadel)
     {
         complete = true;
         print("���������� ����������");
         allPlayers.RemoveAll(p => !p);
 
         if (!MultiplayerManager.IsMaster)
-        {
-            EventsHolder.clientGameCompleted?.Invoke();
             return;
-        }
 
-        // Hot Fix
+        Team losingTeam = destroyedCitadel != null && destroyedCitadel.Health != null 
+            ? destroyedCitadel.Health.Team 
+            : Team.One;
+        Team winningTeam = losingTeam == Team.One ? Team.Two : Team.One;
+
         StartCoroutine(Delay());
 
         IEnumerator Delay()
         {
-            yield return new WaitForSeconds(0.3f);
-
-            var citadel = citadels.ToList().Find(c => c);
-
-            if (citadel.Health.Team == MineTeam)
+            yield return new WaitForSeconds(0.5f);
+            if (MultiplayerManager.Instance != null)
             {
-                EventsHolder.onVictory?.Invoke(MineTeam);
-            }
-            else
-            {
-                EventsHolder.onDefeat?.Invoke(MineTeam);
+                MultiplayerManager.Instance.NotifyGameComplete(winningTeam);
             }
         }
     }
@@ -311,10 +313,10 @@ public class GameManager : MonoBehaviour
 
     IEnumerator SpawnRune()
     {
-        //int delay = Random.Range(MIN_RUNE_SPAWN_DELAY, MAX_RUNE_SPAWN_DELAY);
-        yield return new WaitForSeconds(1);
+        int delay = Random.Range(MIN_RUNE_SPAWN_DELAY, MAX_RUNE_SPAWN_DELAY);
+        yield return new WaitForSeconds(delay);
 
-        if (MultiplayerManager.IsMaster)
+        if (MultiplayerManager.IsMaster && runePoints != null && runePoints.Length > 0 && runePrefab != null)
         {
             var pos = runePoints[Random.Range(0, runePoints.Length)].position;
 

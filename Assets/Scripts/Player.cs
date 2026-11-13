@@ -46,6 +46,7 @@ public class Player : NetworkBehaviour
 
     public Action<List<PerkID>> onPerkAvailable;
     public Action<PerkID> onPerkPick;
+    public Action<PerkID> onPropertyUpgraded;
     public Action onUpgradeAvailable;
     public Action onNextStageAvailable;
 
@@ -97,23 +98,50 @@ public class Player : NetworkBehaviour
         InitType(TankType.Simple);
     }
 
-    public void InitType(TankType tankType)
+    public void InitType(TankType tankType, bool isRemoteSync = false)
     {
         foreach (var item in typesSets)
         {
             item.handler.gameObject.SetActive(false);
         }
 
-        muzzleHandler = typesSets.ToList().Find(t => t.tankType == tankType).handler;
-        muzzleHandler.gameObject.SetActive(true);
-        muzzleHandler.Init(this);
+        var set = typesSets.ToList().Find(t => t.tankType == tankType);
+        if (set != null && set.handler != null)
+        {
+            muzzleHandler = set.handler;
+            muzzleHandler.gameObject.SetActive(true);
+            muzzleHandler.Init(this);
+        }
 
         CurrentType = tankType;
 
-        Stage++;
+        if (!isRemoteSync)
+        {
+            Stage++;
 
-        health.HealValue += 10;
-        speed -= 0.5f;
+            health.HealValue += 10;
+            speed -= 0.5f;
+
+            var netPlayer = GetComponent<NetworkPlayer>();
+            if (netPlayer != null && IsOwner)
+            {
+                netPlayer.SetTankTypeServerRpc((int)tankType, Stage);
+            }
+        }
+    }
+
+    public void AddScore(int amount)
+    {
+        ScoreTotal += amount;
+        Score += amount;
+        var netPlayer = GetComponent<NetworkPlayer>();
+        if (netPlayer != null && IsOwner)
+        {
+            netPlayer.SyncScoreServerRpc(Score, ScoreTotal);
+        }
+
+        CheckAvailableUpgrade();
+        CheckAvailableNextStage();
     }
 
     private void Creepochek_Anniged(HealthComponent health)
@@ -122,11 +150,7 @@ public class Player : NetworkBehaviour
 
         if (isMeAnnigilator && IsOwner)
         {
-            ScoreTotal += health.GetComponent<Creepochek>().score;
-            Score += health.GetComponent<Creepochek>().score;
-
-            CheckAvailableUpgrade();
-            CheckAvailableNextStage();
+            AddScore(health.GetComponent<Creepochek>().score);
         }
     }
 
@@ -150,11 +174,13 @@ public class Player : NetworkBehaviour
         if (isMeAnnigilator && IsOwner)
         {
             CountAnniges++;
-            ScoreTotal += (int)((float)annigedPlayer.ScoreTotal / 1.3f);
-            Score += (int)((float)annigedPlayer.ScoreTotal / 1.3f);
+            var netPlayer = GetComponent<NetworkPlayer>();
+            if (netPlayer != null)
+            {
+                netPlayer.SyncKillsServerRpc(CountAnniges);
+            }
 
-            CheckAvailableUpgrade();
-            CheckAvailableNextStage();
+            AddScore((int)((float)annigedPlayer.ScoreTotal / 1.3f));
         }
     }
 
@@ -171,9 +197,15 @@ public class Player : NetworkBehaviour
 
             health.IncreaseMaxHealth(10);
 
-            transform.localScale += Vector3.one * 0.08f;
+            transform.localScale = Vector3.one * (1f + (Lvl - 1) * 0.08f);
 
             countAvailableUpgrades++;
+
+            var netPlayer = GetComponent<NetworkPlayer>();
+            if (netPlayer != null && IsOwner)
+            {
+                netPlayer.SyncLvlServerRpc(Lvl, Score, ScoreTotal);
+            }
 
             onUpgradeAvailable?.Invoke();
 
@@ -293,7 +325,7 @@ public class Player : NetworkBehaviour
         countAvailableUpgrades--;
 
         if (!silentMode)
-            onPerkPick?.Invoke(perk);
+            onPropertyUpgraded?.Invoke(perk);
     }
 
     public void TakeRune()
@@ -331,12 +363,56 @@ public class Player : NetworkBehaviour
     private void Anniged(ulong annigilatorID)
     {
         CountAnniged++;
+        var netPlayer = GetComponent<NetworkPlayer>();
+        if (netPlayer != null)
+        {
+            netPlayer.SyncDeathsServerRpc(CountAnniged);
+        }
+
         EventsHolder.playerAnniged?.Invoke(this);
         annigedNotifed = true;
 
         if (IsOwner)
         {
             if (IsServer) { NetworkObject.Despawn(true); } else { RequestDespawnServerRpc(); }
+        }
+    }
+
+    public void OnFired(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    {
+        var netPlayer = GetComponent<NetworkPlayer>();
+        if (netPlayer != null)
+        {
+            netPlayer.BroadcastFire(positions, directions, speed, damage, critChance);
+        }
+    }
+
+    public void SpawnRemoteProjectiles(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    {
+        if (muzzleHandler != null)
+        {
+            muzzleHandler.FireRemote(positions, directions, speed, damage, critChance);
+        }
+        else
+        {
+            for (int i = 0; i < positions.Length; i++)
+            {
+                var pos = positions[i];
+                var dir = directions[i];
+                var projectile = ProjectilePool.Get(pos);
+                var projectileData = new ProjectileData
+                {
+                    baseDamege = damage,
+                    critChance = critChance,
+                    speed = speed,
+                    ownerID = NetworkObjectId,
+                    team = Health.Team,
+                    direction = dir,
+                    isCosmetic = true,
+                    mat = (GameManager.Instance != null && GameManager.Instance.MineTeam == Health.Team) ? friendly : enemy
+                };
+                projectile.Init(projectileData);
+            }
         }
     }
 

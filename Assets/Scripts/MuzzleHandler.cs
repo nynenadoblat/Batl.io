@@ -44,6 +44,9 @@ public class MuzzleHandler : MonoBehaviour
             team = player.Health.Team,
         };
 
+        Vector3[] positions = new Vector3[muzzles.Length];
+        Vector3[] directions = new Vector3[muzzles.Length];
+
         for (int i = 0; i < muzzles.Length; i++)
         {
             float angle = muzzles[i].Point.rotation.eulerAngles.y;
@@ -53,10 +56,46 @@ public class MuzzleHandler : MonoBehaviour
 
             dir.Normalize();
             var pos = muzzles[i].Point.position;
+            positions[i] = pos;
+            directions[i] = dir;
+
             var projectile = ProjectilePool.Get(pos);
             projectileData.direction = dir;
             projectileData.mat = GameManager.Instance.MineTeam == player.Health.Team ? muzzles[i].friendly : muzzles[i].enemy;
 
+            projectile.Init(projectileData);
+        }
+
+        player.OnFired(positions, directions, projectileData.speed, projectileData.baseDamege, projectileData.critChance);
+    }
+
+    public void FireRemote(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    {
+        for (int i = 0; i < positions.Length; i++)
+        {
+            var pos = positions[i];
+            var dir = directions[i];
+            var projectile = ProjectilePool.Get(pos);
+            Material mat = null;
+            if (muzzles != null && muzzles.Length > 0)
+            {
+                int muzzleIdx = Mathf.Min(i, muzzles.Length - 1);
+                mat = (player != null && GameManager.Instance != null && GameManager.Instance.MineTeam == player.Health.Team)
+                    ? muzzles[muzzleIdx].friendly
+                    : muzzles[muzzleIdx].enemy;
+            }
+
+            var projectileData = new ProjectileData
+            {
+                baseDamege = damage,
+                critChance = critChance,
+                speed = speed,
+                ownerID = player != null ? player.NetworkObjectId : 0,
+                team = player != null ? player.Health.Team : Team.One,
+                direction = dir,
+                isCosmetic = true,
+                mat = mat
+            };
             projectile.Init(projectileData);
         }
     }

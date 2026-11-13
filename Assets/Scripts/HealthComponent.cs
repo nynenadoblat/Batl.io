@@ -24,6 +24,7 @@ public class HealthComponent : MonoBehaviour
     public Action<ulong> onAnniged;
     public Action<int> onIncreaseHealth;
     public Action<int, ulong> onDamage;
+    public Action<int> onHeal;
     public Action<Team> onTeamSet;
 
     [field: SerializeField]
@@ -69,13 +70,28 @@ public class HealthComponent : MonoBehaviour
     public void DamageNetworkReceived(int value, ulong ownerID, int damageTime)
     {
         Value -= value;
+        Value = Mathf.Max(0, Value);
         LastDamagedOwnerID = ownerID;
         TimeLastDamage = Time.time;
+    }
+
+    public void SetHealthNetwork(int newHealth, ulong lastDamagedOwnerID)
+    {
+        int previous = Value;
+        Value = Mathf.Clamp(newHealth, 0, MaxValue);
+        LastDamagedOwnerID = lastDamagedOwnerID;
+        TimeLastDamage = Time.time;
+        if (newHealth < previous)
+        {
+            onDamage?.Invoke(previous - newHealth, lastDamagedOwnerID);
+        }
     }
 
     public void Heal()
     {
         Value += HealValue;
+        Value = Mathf.Clamp(Value, 0, MaxValue);
+        onHeal?.Invoke(HealValue);
     }
 
     public void IncreaseMaxHealth(int value, bool networkMode = false)
@@ -127,6 +143,9 @@ public class HealthComponent : MonoBehaviour
 
     void CheckHealTimer()
     {
+        if (Unity.Netcode.NetworkManager.Singleton != null && !Unity.Netcode.NetworkManager.Singleton.IsServer)
+            return;
+
         healTimer += Time.deltaTime;
 
         if (TimeLastDamage + HealRate > Time.time)

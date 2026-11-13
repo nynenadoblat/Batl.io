@@ -134,26 +134,27 @@ public class MultiplayerManager : NetworkBehaviour
         if (Instance != null && NetworkManager.Singleton != null)
         {
             ulong localClientId = NetworkManager.Singleton.LocalClientId;
+            string nick = LobbyManager.GetNickname();
             if (NetworkManager.Singleton.IsServer)
             {
-                Instance.RespawnPlayerOnServer(localClientId);
+                Instance.RespawnPlayerOnServer(localClientId, nick);
             }
             else
             {
-                Instance.RequestRespawnPlayerServerRpc(localClientId);
+                Instance.RequestRespawnPlayerServerRpc(localClientId, nick);
             }
         }
     }
 
     [ServerRpc(RequireOwnership = false)]
-    private void RequestRespawnPlayerServerRpc(ulong clientId)
+    private void RequestRespawnPlayerServerRpc(ulong clientId, string nickname)
     {
-        RespawnPlayerOnServer(clientId);
+        RespawnPlayerOnServer(clientId, nickname);
     }
 
-    private void RespawnPlayerOnServer(ulong clientId)
+    private void RespawnPlayerOnServer(ulong clientId, string nickname)
     {
-        var respawnData = GameManager.Instance.respawnQueue.Find(r => !r.isAI && r.name == LobbyManager.GetNickname());
+        var respawnData = GameManager.Instance.respawnQueue.Find(r => !r.isAI && (r.name == nickname || r.viewID == clientId));
         if (respawnData == null && GameManager.Instance.respawnQueue.Count > 0)
         {
             respawnData = GameManager.Instance.respawnQueue.Find(r => !r.isAI);
@@ -175,6 +176,13 @@ public class MultiplayerManager : NetworkBehaviour
         player.CountAnniged = respawnData.countAnniged;
         player.CountAnniges = respawnData.countAnniges;
         player.Score = respawnData.score;
+        player.Nickname = respawnData.name;
+
+        var netPlayer = playerObj.GetComponent<NetworkPlayer>();
+        if (netPlayer != null)
+        {
+            netPlayer.SyncScoreOnRespawnServer(respawnData.score, respawnData.countAnniges, respawnData.countAnniged);
+        }
 
         StartCoroutine(PerkSender());
 
@@ -185,6 +193,29 @@ public class MultiplayerManager : NetworkBehaviour
                 player.PickPerk(perk);
                 yield return new WaitForSeconds(0.1f);
             }
+        }
+    }
+
+    public void NotifyGameComplete(Team winningTeam)
+    {
+        if (IsServer)
+        {
+            GameCompleteClientRpc((int)winningTeam);
+        }
+    }
+
+    [ClientRpc]
+    private void GameCompleteClientRpc(int winningTeamInt)
+    {
+        Team winningTeam = (Team)winningTeamInt;
+        GameManager.Instance.complete = true;
+        if (GameManager.Instance.MineTeam == winningTeam)
+        {
+            EventsHolder.onVictory?.Invoke(GameManager.Instance.MineTeam);
+        }
+        else
+        {
+            EventsHolder.onDefeat?.Invoke(GameManager.Instance.MineTeam);
         }
     }
 

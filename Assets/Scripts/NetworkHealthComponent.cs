@@ -30,6 +30,7 @@ public class NetworkHealthComponent : NetworkBehaviour
         health.onDamage += OnLocalDamage;
         health.onIncreaseHealth += OnLocalHealthIncreased;
         health.onAnniged += OnLocalAnniged;
+        health.onHeal += OnLocalHeal;
     }
 
     public override void OnNetworkSpawn()
@@ -70,15 +71,15 @@ public class NetworkHealthComponent : NetworkBehaviour
     {
         if (!IsServer)
         {
-            int delta = newValue - health.Value;
-            if (delta < 0)
-            {
-                health.DamageNetworkReceived(-delta, health.LastDamagedOwnerID, 0);
-            }
-            else if (delta > 0)
-            {
-                health.Heal();
-            }
+            health.SetHealthNetwork(newValue, health.LastDamagedOwnerID);
+        }
+    }
+
+    private void OnLocalHeal(int healAmount)
+    {
+        if (IsServer)
+        {
+            netHealth.Value = health.Value;
         }
     }
 
@@ -134,7 +135,8 @@ public class NetworkHealthComponent : NetworkBehaviour
     {
         if (!IsServer)
         {
-            health.DamageNetworkReceived(value, ownerID, 0);
+            health.LastDamagedOwnerID = ownerID;
+            health.TimeLastDamage = Time.time;
         }
     }
 
