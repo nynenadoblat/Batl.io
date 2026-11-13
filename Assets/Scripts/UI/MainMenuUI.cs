@@ -115,21 +115,7 @@ namespace BatlIO.UI
         {
             if (lobbyManager == null) return;
 
-            if (serverIpInput != null && !string.IsNullOrWhiteSpace(serverIpInput.text))
-            {
-                if (System.Net.IPAddress.TryParse(serverIpInput.text.Trim(), out var parsedIp))
-                {
-                    var netManager = Unity.Netcode.NetworkManager.Singleton;
-                    if (netManager != null)
-                    {
-                        var utp = netManager.GetComponent<Unity.Netcode.Transports.UTP.UnityTransport>();
-                        if (utp != null)
-                        {
-                            utp.SetConnectionData(parsedIp.ToString(), 7777);
-                        }
-                    }
-                }
-            }
+            string targetIp = serverIpInput != null ? serverIpInput.text.Trim() : "127.0.0.1";
 
             btnPlay.interactable = false;
             if (searchingIndicator != null) searchingIndicator.SetActive(true);
@@ -137,7 +123,20 @@ namespace BatlIO.UI
             if (searchingCoroutine != null) StopCoroutine(searchingCoroutine);
             searchingCoroutine = StartCoroutine(AnimateSearching());
 
-            lobbyManager.JoinRoom();
+            lobbyManager.JoinRoom(targetIp);
+        }
+
+        public void ResetPlayButton()
+        {
+            if (searchingCoroutine != null)
+            {
+                StopCoroutine(searchingCoroutine);
+                searchingCoroutine = null;
+            }
+            if (searchingIndicator != null) searchingIndicator.SetActive(false);
+            if (btnPlay != null) btnPlay.interactable = true;
+            if (btnPlayTitle != null) btnPlayTitle.text = Language.Rus ? "ИГРАТЬ" : "PLAY";
+            if (btnPlaySubtitle != null) btnPlaySubtitle.text = Language.Rus ? "СЛУЧАЙНЫЙ БОЙ НА АРЕНЕ" : "RANDOM ARENA BATTLE";
         }
 
         private IEnumerator AnimateSearching()

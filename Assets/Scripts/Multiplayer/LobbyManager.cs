@@ -30,6 +30,8 @@ public class LobbyManager : MonoBehaviour
     public static string disconectMsg;
     public static string nickname = string.Empty;
 
+    private bool isConnecting;
+
     private void Awake()
     {
         if (PlayerPrefs.HasKey("nick"))
@@ -52,7 +54,12 @@ public class LobbyManager : MonoBehaviour
             inputField.onValueChanged.AddListener(SetNick);
         }
 
-        btnConnect.onClick.AddListener(JoinRoom);
+        // Only register direct button click if MainMenuUI is not driving the flow
+        var mainMenu = Object.FindAnyObjectByType<BatlIO.UI.MainMenuUI>();
+        if (mainMenu == null && btnConnect != null)
+        {
+            btnConnect.onClick.AddListener(() => JoinRoom());
+        }
 
         if (!string.IsNullOrEmpty(disconectMsg))
         {
@@ -82,34 +89,54 @@ public class LobbyManager : MonoBehaviour
         PlayerPrefs.SetString("nick", value);
     }
 
-    public void JoinRoom()
+    public void JoinRoom(string targetIp = null)
     {
-        btnConnect.interactable = false;
-        btnLabel.text = Language.Rus ? "Поиск игры.." : "Game searching..";
+        if (isConnecting) return;
 
-        StartCoroutine(StartNetworkFlow());
+        if (btnConnect != null) btnConnect.interactable = false;
+        if (btnLabel != null) btnLabel.text = Language.Rus ? "Поиск игры.." : "Game searching..";
+
+        StartCoroutine(StartNetworkFlow(targetIp));
     }
 
-    private IEnumerator StartNetworkFlow()
+    private IEnumerator StartNetworkFlow(string targetIp)
     {
+        isConnecting = true;
+
         var netManager = NetworkManager.Singleton;
         if (netManager == null)
         {
             Log("NetworkManager not found!");
-            btnConnect.interactable = true;
+            ResetConnectingState();
             yield break;
         }
 
-        var transport = netManager.GetComponent<UnityTransport>();
-
-        string targetAddress = "127.0.0.1";
-        ushort targetPort = 7777;
-
-        bool isExplicitRemoteIp = false;
-        if (inputField != null && IPAddress.TryParse(inputField.text.Trim(), out var parsedIp))
+        if (netManager.IsServer || netManager.IsClient)
         {
-            targetAddress = parsedIp.ToString();
-            isExplicitRemoteIp = true;
+            netManager.Shutdown();
+            yield return null;
+        }
+
+        var transport = netManager.GetComponent<UnityTransport>();
+        ushort targetPort = 7777;
+        string targetAddress = "127.0.0.1";
+        bool isExplicitRemoteIp = false;
+
+        if (!string.IsNullOrWhiteSpace(targetIp) && IPAddress.TryParse(targetIp.Trim(), out var parsedFromArg))
+        {
+            targetAddress = parsedFromArg.ToString();
+            if (targetAddress != "127.0.0.1" && targetAddress != "0.0.0.0")
+            {
+                isExplicitRemoteIp = true;
+            }
+        }
+        else if (inputField != null && IPAddress.TryParse(inputField.text.Trim(), out var parsedFromField))
+        {
+            targetAddress = parsedFromField.ToString();
+            if (targetAddress != "127.0.0.1" && targetAddress != "0.0.0.0")
+            {
+                isExplicitRemoteIp = true;
+            }
         }
 
         if (transport != null)
@@ -117,24 +144,75 @@ public class LobbyManager : MonoBehaviour
             transport.SetConnectionData(targetAddress, targetPort);
         }
 
-        if (isExplicitRemoteIp || !IsPortAvailable(targetPort))
+        bool portOccupied = !IsPortAvailable(targetPort);
+
+        if (isExplicitRemoteIp || portOccupied)
         {
-            Log(Language.Rus ? "Подключение к игре..." : "Connecting to host...");
-            netManager.StartClient();
+            Log(Language.Rus ? "Подключение к серверу (" + targetAddress + ")..." : "Connecting to server (" + targetAddress + ")...");
+            bool clientStarted = netManager.StartClient();
+            if (!clientStarted)
+            {
+                Log(Language.Rus ? "Ошибка старта клиента!" : "Client start failed!");
+                ResetConnectingState();
+                yield break;
+            }
+
+            float clientTimeout = 6f;
+            while (clientTimeout > 0 && netManager.IsClient && !netManager.IsConnectedClient)
+            {
+                clientTimeout -= Time.deltaTime;
+                yield return null;
+            }
+
+            if (!netManager.IsConnectedClient)
+            {
+                Log(Language.Rus ? "Не удалось подключиться к серверу!" : "Failed to connect to server!");
+                netManager.Shutdown();
+                ResetConnectingState();
+                yield break;
+            }
         }
         else
         {
             Log(Language.Rus ? "Создание игры (Хост)..." : "Hosting game...");
-            netManager.StartHost();
+            bool hostStarted = netManager.StartHost();
+            if (!hostStarted || !netManager.IsServer)
+            {
+                Log(Language.Rus ? "Порт занят, пробуем подключиться как клиент..." : "Port busy, fallback to client...");
+                transport?.SetConnectionData("127.0.0.1", targetPort);
+                bool clientStarted = netManager.StartClient();
+                if (!clientStarted)
+                {
+                    ResetConnectingState();
+                    yield break;
+                }
+
+                float clientTimeout = 6f;
+                while (clientTimeout > 0 && netManager.IsClient && !netManager.IsConnectedClient)
+                {
+                    clientTimeout -= Time.deltaTime;
+                    yield return null;
+                }
+
+                if (!netManager.IsConnectedClient)
+                {
+                    Log(Language.Rus ? "Не удалось подключиться!" : "Connection failed!");
+                    netManager.Shutdown();
+                    ResetConnectingState();
+                }
+                yield break;
+            }
 
             float waitTime = 0;
-            while (waitTime < 2.5f)
+            while (waitTime < 2.5f && netManager.IsServer)
             {
                 waitTime += Time.deltaTime;
-                if (waitTime % 1.1f > 0.55f)
-                    btnLabel.text = Language.Rus ? "Поиск игры.." : "Game searching..";
-                else
-                    btnLabel.text = Language.Rus ? "Поиск игры." : "Game searching.";
+                if (btnLabel != null)
+                {
+                    btnLabel.text = (waitTime % 1.1f > 0.55f)
+                        ? (Language.Rus ? "Поиск игры.." : "Game searching..")
+                        : (Language.Rus ? "Поиск игры." : "Game searching.");
+                }
 
                 if (netManager.ConnectedClients.Count > 1)
                 {
@@ -143,7 +221,28 @@ public class LobbyManager : MonoBehaviour
                 yield return null;
             }
 
-            netManager.SceneManager.LoadScene(sceneNameToload, LoadSceneMode.Single);
+            if (netManager != null && netManager.IsServer && netManager.IsListening && netManager.SceneManager != null)
+            {
+                netManager.SceneManager.LoadScene(sceneNameToload, LoadSceneMode.Single);
+            }
+            else
+            {
+                Log(Language.Rus ? "Ошибка старта хоста!" : "Host start error!");
+                ResetConnectingState();
+            }
+        }
+    }
+
+    private void ResetConnectingState()
+    {
+        isConnecting = false;
+        if (btnConnect != null) btnConnect.interactable = true;
+        if (btnLabel != null) btnLabel.text = Language.Rus ? "ИГРАТЬ" : "PLAY";
+
+        var mainMenu = Object.FindAnyObjectByType<BatlIO.UI.MainMenuUI>();
+        if (mainMenu != null)
+        {
+            mainMenu.ResetPlayButton();
         }
     }
 
@@ -153,6 +252,7 @@ public class LobbyManager : MonoBehaviour
         {
             using (var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp))
             {
+                socket.ExclusiveAddressUse = true;
                 socket.Bind(new IPEndPoint(IPAddress.Any, port));
                 return true;
             }
@@ -176,6 +276,12 @@ public class LobbyManager : MonoBehaviour
         if (logText != null && !string.IsNullOrEmpty(msg))
         {
             logText.text += "\n" + msg;
+        }
+
+        var mainMenu = Object.FindAnyObjectByType<BatlIO.UI.MainMenuUI>();
+        if (mainMenu != null && !string.IsNullOrEmpty(msg))
+        {
+            mainMenu.ShowStatus(msg);
         }
     }
 }
