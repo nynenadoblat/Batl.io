@@ -16,6 +16,7 @@ namespace BatlIO.UI
         [SerializeField] private Button btnPlay;
         [SerializeField] private TMP_Text btnPlayTitle;
         [SerializeField] private TMP_Text btnPlaySubtitle;
+        [Tooltip("Optional searching indicator / spinner")]
         [SerializeField] private GameObject searchingIndicator;
 
         [Header("Navigation Buttons")]
@@ -77,7 +78,7 @@ namespace BatlIO.UI
             // Hide modals initially
             settingsModal.SetActive(false);
             controlsModal.SetActive(false);
-            searchingIndicator.SetActive(false);
+            if (searchingIndicator != null) searchingIndicator.SetActive(false);
 
             // Disconnect message
             if (!string.IsNullOrEmpty(LobbyManager.disconectMsg))
@@ -101,7 +102,7 @@ namespace BatlIO.UI
             string targetIp = serverIpInput.text.Trim();
 
             btnPlay.interactable = false;
-            searchingIndicator.SetActive(true);
+            if (searchingIndicator != null) searchingIndicator.SetActive(true);
 
             if (searchingCoroutine != null) StopCoroutine(searchingCoroutine);
             searchingCoroutine = StartCoroutine(AnimateSearching());
@@ -116,7 +117,7 @@ namespace BatlIO.UI
                 StopCoroutine(searchingCoroutine);
                 searchingCoroutine = null;
             }
-            searchingIndicator.SetActive(false);
+            if (searchingIndicator != null) searchingIndicator.SetActive(false);
             btnPlay.interactable = true;
             btnPlayTitle.text = Language.Rus ? "ИГРАТЬ" : "PLAY";
             btnPlaySubtitle.text = Language.Rus ? "СЛУЧАЙНЫЙ БОЙ НА АРЕНЕ" : "RANDOM ARENA BATTLE";
