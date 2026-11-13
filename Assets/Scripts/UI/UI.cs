@@ -241,6 +241,8 @@ public class UI : MonoBehaviour
 
     private void UpgradeProperty_Clicked(PerkID perkID)
     {
+        if (playerMine == null) return;
+
         playerMine.UpgradeProperty(perkID);
 
         if(playerMine.CountAvailableUpgrades <= 0)
@@ -249,7 +251,6 @@ public class UI : MonoBehaviour
             canvas.interactable = false;
             LeanTween.value(gameObject, a => canvas.alpha = a, 1, 0, 0.5f).setEaseInOutQuad();
         }
-
     }
 
     private void Player_Anniged(Player player)
@@ -257,20 +258,23 @@ public class UI : MonoBehaviour
         var pair = barsPlayers.Find(p => p.player == player);
         if (pair != null)
         {
-            Destroy(pair.bar.gameObject);
+            if (pair.bar != null) Destroy(pair.bar.gameObject);
             barsPlayers.Remove(pair);
         }
 
         var entry = playersEntryes.Find(p => p.player == player);
         if (entry != null)
         {
-            Destroy(entry.entry.gameObject);
+            if (entry.entry != null) Destroy(entry.entry.gameObject);
             playersEntryes.Remove(entry);
         }
 
-
         if (player.GetComponent<BehaviourPlayer>() && player.IsMine() && !GameManager.Instance.complete)
         {
+            if (playerMine == player)
+            {
+                playerMine = null;
+            }
             if (joystick != null)
             {
                 joystick.gameObject.SetActive(false);
@@ -381,22 +385,15 @@ public class UI : MonoBehaviour
 
     private void Update()
     {
-        UpdateLvlBar();
+        if (playerMine != null)
+        {
+            UpdateLvlBar();
+            labelCountUpgrades.text = $"x{playerMine.CountAvailableUpgrades}";
+            UpdatePerkBar();
+        }
+
         UpdateLiderboard();
         UpdateHealthBars();
-
-        //if(joystick.Direction != Vector2.zero)
-        //{
-        //    isSleep = false;
-        //    onJoystick?.Invoke(joystick.Direction);
-        //}
-        //else if(!isSleep)
-        //{
-        //    isSleep = true;
-        //    onJoystick?.Invoke(joystick.Direction);
-        //}
-
-        labelCountUpgrades.text = $"x{playerMine.CountAvailableUpgrades}";
 
         if (GameManager.Instance.Rune)
         {
@@ -406,6 +403,7 @@ public class UI : MonoBehaviour
 
     void UpdateLvlBar()
     {
+        if (playerMine == null) return;
         labelLvl.text = $"{playerMine.Lvl} ��.";
 
         float thresold = 10 + Mathf.Pow(playerMine.Lvl, 1.3f);
@@ -414,8 +412,16 @@ public class UI : MonoBehaviour
 
     void UpdateLiderboard()
     {
-        foreach (var item in playersEntryes)
+        for (int i = playersEntryes.Count - 1; i >= 0; i--)
         {
+            var item = playersEntryes[i];
+            if (item == null || item.player == null)
+            {
+                if (item?.entry != null) Destroy(item.entry.gameObject);
+                playersEntryes.RemoveAt(i);
+                continue;
+            }
+
             item.entry.text = $"{item.player.ScoreTotal} Lvl.{item.player.Lvl} {item.player.Nickname}";
 
             if (item.player.ScoreTotal >= maxScore)
@@ -425,11 +431,14 @@ public class UI : MonoBehaviour
             }
         }
 
-        playersEntryes = playersEntryes.OrderByDescending(i => i.player.ScoreTotal).ToList();
+        playersEntryes = playersEntryes.OrderByDescending(i => i.player != null ? i.player.ScoreTotal : 0).ToList();
 
         for (int i = 0; i < playersEntryes.Count; i++)
         {
-            playersEntryes[i].entry.transform.SetSiblingIndex(i);
+            if (playersEntryes[i].entry != null)
+            {
+                playersEntryes[i].entry.transform.SetSiblingIndex(i);
+            }
         }
     }
 
@@ -478,8 +487,16 @@ public class UI : MonoBehaviour
     void UpdateHealthBars()
     {
         int yOffset = (int)((float)Screen.height / 11f / transform.lossyScale.x);
-        foreach (var item in barsPlayers)
+        for (int i = barsPlayers.Count - 1; i >= 0; i--)
         {
+            var item = barsPlayers[i];
+            if (item == null || item.player == null)
+            {
+                if (item?.bar != null) Destroy(item.bar.gameObject);
+                barsPlayers.RemoveAt(i);
+                continue;
+            }
+
             var screenPos = Camera.main.WorldToScreenPoint(item.player.transform.position);
 
             if (screenPos.x < 0 || screenPos.x > Screen.width 
@@ -499,9 +516,16 @@ public class UI : MonoBehaviour
             item.bar.value = value;
         }
 
-
-        foreach (var item in healthBars)
+        for (int i = healthBars.Count - 1; i >= 0; i--)
         {
+            var item = healthBars[i];
+            if (item == null || item.health == null)
+            {
+                if (item?.bar != null) Destroy(item.bar.gameObject);
+                healthBars.RemoveAt(i);
+                continue;
+            }
+
             var screenPos = Camera.main.WorldToScreenPoint(item.health.transform.position);
 
             if (screenPos.x < 0 || screenPos.x > Screen.width
@@ -520,7 +544,6 @@ public class UI : MonoBehaviour
             var value = (float)item.health.Value / (float)item.health.MaxValue;
             item.bar.value = value;
         }
-
     }
 
     void UpdatePerkBar()
@@ -536,6 +559,32 @@ public class UI : MonoBehaviour
     private void Cam_Clicked()
     {
         EventsHolder.onCamClicked?.Invoke();
+    }
+
+    private void OnDestroy()
+    {
+        EventsHolder.playerSpawnedMine.RemoveListener(PlayerMine_Spawned);
+        EventsHolder.playerSpawnedAny.RemoveListener(PlayerAny_Spawned);
+        EventsHolder.playerAnniged.RemoveListener(Player_Anniged);
+        EventsHolder.onCrepochekDamage.RemoveListener(Crepochek_Damaged);
+        EventsHolder.profileSeted.RemoveListener(Profile_Seted);
+        EventsHolder.creepAnniged.RemoveListener(Creepochek_Anniged);
+        EventsHolder.runeSpawned.RemoveListener(Rune_Spawned);
+        EventsHolder.runeTaked.RemoveListener(Rune_Taked);
+        EventsHolder.runeEnded.RemoveListener(Rune_Ended);
+        EventsHolder.onVictory.RemoveListener(Victory);
+        EventsHolder.onDefeat.RemoveListener(Defeat);
+
+        if (respawnTimer != null)
+        {
+            respawnTimer.onTimerNotify -= RespawnTimer;
+        }
+
+        if (playerMine != null)
+        {
+            playerMine.onUpgradeAvailable -= Upgrade_Availabled;
+            playerMine.onNextStageAvailable -= NextStage_Availabled;
+        }
     }
 
     class BarPlayerPair

@@ -66,4 +66,11 @@ public class CameraHandler : MonoBehaviour
         cam.Follow = player.transform;
         cam.LookAt = player.transform;
     }
+
+    private void OnDestroy()
+    {
+        EventsHolder.playerSpawnedMine.RemoveListener(PlayerMine_Spawned);
+        EventsHolder.onCamClicked.RemoveListener(Cam_Clicked);
+        EventsHolder.nextStageAvailable.RemoveListener(NextStage_Availabled);
+    }
 }

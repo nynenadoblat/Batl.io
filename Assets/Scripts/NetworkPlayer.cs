@@ -95,6 +95,8 @@ public class NetworkPlayer : NetworkBehaviour
                 string nick = LobbyManager.GetNickname();
                 player.Nickname = nick;
                 SetNicknameServerRpc(nick);
+
+                EventsHolder.playerSpawnedMine?.Invoke(player);
             }
             else
             {

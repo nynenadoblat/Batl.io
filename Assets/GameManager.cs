@@ -50,8 +50,6 @@ public class GameManager : MonoBehaviour
     {
         Instance = this;
 
-        multiplayer.onPlayerSpawned += Player_Spawned;
-
         EventsHolder.playerSpawnedAny.AddListener(PlayerAny_Spawned);
         EventsHolder.playerAnniged.AddListener(Player_Anniged);
         EventsHolder.creepSpawned.AddListener(Creep_Spawned);
@@ -270,12 +268,6 @@ public class GameManager : MonoBehaviour
         //print(player.Nickname + " Spawned");
         allPlayers.Add(player.GetComponent<Player>());
         respawnQueue.Remove(respawnQueue.Find(p => p.name == player.Nickname));
-    }
-
-    private void Player_Spawned(GameObject player)
-    {
-        var p = player.GetComponent<Player>();
-        EventsHolder.playerSpawnedMine?.Invoke(p);
     }
 
     public HealthComponent FindTarget(HealthComponent health)
