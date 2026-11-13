@@ -96,6 +96,21 @@ public class MultiplayerManager : NetworkBehaviour
 
     private void OnClientDisconnected(ulong clientId)
     {
+        if (IsServer)
+        {
+            var disconnectedPlayer = GameManager.Instance.allPlayers.Find(p => p != null && p.OwnerClientId == clientId);
+            if (disconnectedPlayer != null)
+            {
+                GameManager.Instance.allPlayers.Remove(disconnectedPlayer);
+            }
+        }
+        else
+        {
+            if (NetworkManager.Singleton != null && clientId == NetworkManager.Singleton.LocalClientId)
+            {
+                Leave();
+            }
+        }
     }
 
     private void SpawnPlayerForClient(ulong clientId)
