@@ -90,7 +90,7 @@ public class UI : MonoBehaviour
 
         EventsHolder.onVictory.AddListener(Victory);
         EventsHolder.onDefeat.AddListener(Defeat);
-        EventsHolder.clientGameCompleted.AddListener(() => GameComplete(CompleteStatus.Defeat));
+        EventsHolder.clientGameCompleted.AddListener(OnClientGameCompletedDefeat);
 
         if (respawnTimer != null)
         {
@@ -403,7 +403,7 @@ public class UI : MonoBehaviour
     void UpdateLvlBar()
     {
         if (playerMine == null) return;
-        labelLvl.text = $"{playerMine.Lvl} ��.";
+        labelLvl.text = Language.Rus ? $"{playerMine.Lvl} ур." : $"{playerMine.Lvl} lvl.";
 
         float thresold = 10 + Mathf.Pow(playerMine.Lvl, 1.3f);
         expBar.value = playerMine.Score / thresold;
@@ -582,6 +582,8 @@ public class UI : MonoBehaviour
         EventsHolder.runeEnded.RemoveListener(Rune_Ended);
         EventsHolder.onVictory.RemoveListener(Victory);
         EventsHolder.onDefeat.RemoveListener(Defeat);
+        EventsHolder.clientGameCompleted.RemoveListener(OnClientGameCompletedDefeat);
+        EventsHolder.clientCompleteDataReceived.RemoveListener(ClientData_Received);
 
         if (respawnTimer != null)
         {
@@ -593,6 +595,11 @@ public class UI : MonoBehaviour
             playerMine.onUpgradeAvailable -= Upgrade_Availabled;
             playerMine.onNextStageAvailable -= NextStage_Availabled;
         }
+    }
+
+    private void OnClientGameCompletedDefeat()
+    {
+        GameComplete(CompleteStatus.Defeat);
     }
 
     class BarPlayerPair

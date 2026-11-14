@@ -506,6 +506,15 @@ public class Player : NetworkBehaviour
 
     public override void OnDestroy()
     {
+        if (Health != null)
+        {
+            Health.onAnniged -= Anniged;
+            Health.onTeamSet -= Team_Seted;
+        }
+
+        EventsHolder.playerAnniged.RemoveListener(OtherPlayer_Anniged);
+        EventsHolder.creepAnniged.RemoveListener(Creepochek_Anniged);
+
         base.OnDestroy();
         //print("���������, ����.. " + Nickname);
         if (!IsOwner && !annigedNotifed && Time.time > 7)

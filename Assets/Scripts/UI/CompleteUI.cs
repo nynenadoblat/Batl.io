@@ -22,6 +22,7 @@ public class CompleteUI : MonoBehaviour
         print(status + " ===========================");
         Clear();
 
+        btnOk.onClick.RemoveListener(Ok_Clicked);
         btnOk.onClick.AddListener(Ok_Clicked);
 
         labelVictory.text = status == CompleteStatus.Victory ? "Victory" : "Defeat";

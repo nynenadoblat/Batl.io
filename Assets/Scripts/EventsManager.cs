@@ -146,4 +146,41 @@ public class EventsHolder
 
     ////-----------------------------------------------------------------------
 
+    static EventsHolder()
+    {
+        UnityEngine.SceneManagement.SceneManager.sceneUnloaded += OnSceneUnloaded;
+    }
+
+    private static void OnSceneUnloaded(UnityEngine.SceneManagement.Scene scene)
+    {
+        ResetAllEvents();
+    }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    public static void ResetAllEvents()
+    {
+        playerSpawnedMine?.RemoveAllListeners();
+        enemyDestroyed?.RemoveAllListeners();
+        playerSpawnedAny?.RemoveAllListeners();
+        leftJoystickMoved?.RemoveAllListeners();
+        rightJoystickMoved?.RemoveAllListeners();
+        rightJoystickUp?.RemoveAllListeners();
+        jumpClicked?.RemoveAllListeners();
+        playerAnniged?.RemoveAllListeners();
+        creepSpawned?.RemoveAllListeners();
+        creepAnniged?.RemoveAllListeners();
+        teamPicked?.RemoveAllListeners();
+        mineTeamPicked?.RemoveAllListeners();
+        clientGameCompleted?.RemoveAllListeners();
+        onCrepochekDamage?.RemoveAllListeners();
+        profileSeted?.RemoveAllListeners();
+        onVictory?.RemoveAllListeners();
+        onDefeat?.RemoveAllListeners();
+        clientCompleteDataReceived?.RemoveAllListeners();
+        onCamClicked?.RemoveAllListeners();
+        runeSpawned?.RemoveAllListeners();
+        runeTaked?.RemoveAllListeners();
+        runeEnded?.RemoveAllListeners();
+        nextStageAvailable?.RemoveAllListeners();
+    }
 }

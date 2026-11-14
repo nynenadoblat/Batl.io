@@ -326,6 +326,22 @@ public class GameManager : MonoBehaviour
     {
         StartCoroutine(SpawnRune());
     }
+
+    private void OnDestroy()
+    {
+        EventsHolder.playerSpawnedAny.RemoveListener(PlayerAny_Spawned);
+        EventsHolder.playerAnniged.RemoveListener(Player_Anniged);
+        EventsHolder.creepSpawned.RemoveListener(Creep_Spawned);
+        EventsHolder.creepAnniged.RemoveListener(Creep_Anniged);
+        EventsHolder.mineTeamPicked.RemoveListener(MineTeam_Picked);
+        EventsHolder.runeSpawned.RemoveListener(Rune_Spawned);
+        EventsHolder.runeEnded.RemoveListener(Rune_Ended);
+
+        if (Instance == this)
+        {
+            Instance = null;
+        }
+    }
 }
 
 [Serializable]
