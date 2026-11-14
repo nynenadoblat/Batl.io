@@ -389,7 +389,6 @@ public class UI : MonoBehaviour
         {
             UpdateLvlBar();
             labelCountUpgrades.text = $"x{playerMine.CountAvailableUpgrades}";
-            UpdatePerkBar();
         }
 
         UpdateLiderboard();
@@ -450,38 +449,47 @@ public class UI : MonoBehaviour
         {
             yield return new WaitForSeconds(1.1f);
 
-            var rect = perkProgressBar.GetComponent<RectTransform>();
-            LeanTween.value
-            (
-                gameObject,
-                y => 
-                { 
-                    rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, y); 
-                },
-                0,
-                30,
-                0.3f
-            ).setEaseOutQuad();
+            if (perkProgressBar != null)
+            {
+                var rect = perkProgressBar.GetComponent<RectTransform>();
+                LeanTween.value
+                (
+                    gameObject,
+                    y => 
+                    { 
+                        rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, y); 
+                    },
+                    0,
+                    30,
+                    0.3f
+                ).setEaseOutQuad();
+            }
 
-            perkHandler.Init(usedPerks);
+            if (perkHandler != null)
+            {
+                perkHandler.Init(usedPerks);
+            }
         }
     }
 
     public void ClosePerkPanel()
     {
-        perkHandler.Clear();
-        var rect = perkProgressBar.GetComponent<RectTransform>();
-        LeanTween.value
-        (
-            gameObject,
-            y =>
-            {
-                rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, y);
-            },
-            30,
-            0,
-            0.3f
-        ).setEaseOutQuad();
+        if (perkHandler != null) perkHandler.Clear();
+        if (perkProgressBar != null)
+        {
+            var rect = perkProgressBar.GetComponent<RectTransform>();
+            LeanTween.value
+            (
+                gameObject,
+                y =>
+                {
+                    rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, y);
+                },
+                30,
+                0,
+                0.3f
+            ).setEaseOutQuad();
+        }
     }
 
     void UpdateHealthBars()
@@ -548,7 +556,7 @@ public class UI : MonoBehaviour
 
     void UpdatePerkBar()
     {
-        if (!playerMine)
+        if (!playerMine || perkProgressBar == null)
             return;
 
         var curProgress = playerMine.PerkProgress.Evaluate(playerMine.usedPerks.Count);
