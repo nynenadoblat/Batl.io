@@ -346,7 +346,7 @@ public class MultiplayerManager : NetworkBehaviour
         return spawned;
     }
 
-    public static void DestroyByPhoton(GameObject target)
+    public static void DespawnOrDestroy(GameObject target)
     {
         if (target == null) return;
 
@@ -360,6 +360,9 @@ public class MultiplayerManager : NetworkBehaviour
             Destroy(target);
         }
     }
+
+    [System.Obsolete("Use DespawnOrDestroy instead.")]
+    public static void DestroyByPhoton(GameObject target) => DespawnOrDestroy(target);
 
     public void Leave()
     {
