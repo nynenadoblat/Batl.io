@@ -15,6 +15,7 @@ public class Projectile : MonoBehaviour
 
     MeshRenderer mesh;
     ParticleSystem[] particles;
+    TrailRenderer trail;
 
     public ulong OwnerId { get; set; }
 
@@ -32,6 +33,7 @@ public class Projectile : MonoBehaviour
     {
         mesh = GetComponent<MeshRenderer>();
         particles = GetComponentsInChildren<ParticleSystem>();
+        trail = GetComponentInChildren<TrailRenderer>();
     }
 
     public void Init(ProjectileData data)
@@ -44,6 +46,16 @@ public class Projectile : MonoBehaviour
         if (particles == null || particles.Length == 0)
         {
             particles = GetComponentsInChildren<ParticleSystem>();
+        }
+
+        if (trail == null)
+        {
+            trail = GetComponentInChildren<TrailRenderer>();
+        }
+
+        if (trail != null)
+        {
+            trail.Clear();
         }
 
         prevPoint = transform.position;
@@ -74,6 +86,8 @@ public class Projectile : MonoBehaviour
             {
                 var main = particles[i].main;
                 main.startColor = targetColor;
+                particles[i].Clear();
+                particles[i].Play();
             }
         }
     }

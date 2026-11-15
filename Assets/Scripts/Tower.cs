@@ -104,4 +104,13 @@ public class Tower : NetworkBehaviour
             this.target = null;
         }
     }
+
+    public override void OnDestroy()
+    {
+        if (health != null)
+        {
+            health.onAnniged -= Anniged;
+        }
+        base.OnDestroy();
+    }
 }

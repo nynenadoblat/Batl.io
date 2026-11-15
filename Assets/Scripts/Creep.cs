@@ -147,6 +147,11 @@ public class Creep : NetworkBehaviour
 
     public override void OnDestroy()
     {
+        if (health != null)
+        {
+            health.onTeamSet -= Team_Seted;
+        }
+
         base.OnDestroy();
         EventsHolder.creepAnniged?.Invoke(health);
     }

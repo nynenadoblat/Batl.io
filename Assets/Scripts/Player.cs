@@ -538,4 +538,5 @@ public enum Team
 {
     One = 0, 
     Two = 1,
+    Neutral = 2,
 }

@@ -43,12 +43,13 @@ public class ProjectilePool : MonoBehaviour
 
     private Projectile CreateProjectile()
     {
-        return Instantiate(prefab, transform);
+        var p = Instantiate(prefab, transform);
+        p.gameObject.SetActive(false);
+        return p;
     }
 
     private void OnGetProjectile(Projectile p)
     {
-        p.gameObject.SetActive(true);
     }
 
     private void OnReleaseProjectile(Projectile p)
@@ -73,6 +74,7 @@ public class ProjectilePool : MonoBehaviour
 
         var p = Instance.pool.Get();
         p.transform.position = pos;
+        p.gameObject.SetActive(true);
         return p;
     }
 

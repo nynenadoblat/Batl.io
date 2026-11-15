@@ -20,8 +20,12 @@ public class Creepochek : NetworkBehaviour
     {
         agent = GetComponent<NavMeshAgent>();
 
-        health.onAnniged += Anniged;
-        health.onDamage += Damaged;
+        if (health != null)
+        {
+            health.Team = Team.Neutral;
+            health.onAnniged += Anniged;
+            health.onDamage += Damaged;
+        }
     }
 
     private void Damaged(int arg1, ulong arg2)
@@ -62,6 +66,12 @@ public class Creepochek : NetworkBehaviour
 
     public override void OnDestroy()
     {
+        if (health != null)
+        {
+            health.onAnniged -= Anniged;
+            health.onDamage -= Damaged;
+        }
+
         base.OnDestroy();
         EventsHolder.creepAnniged?.Invoke(health);
     }

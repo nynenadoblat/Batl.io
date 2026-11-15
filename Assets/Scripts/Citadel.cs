@@ -19,4 +19,13 @@ public class Citadel : NetworkBehaviour
             GetComponent<NetworkObject>().Despawn(true);
         }
     }
+
+    public override void OnDestroy()
+    {
+        if (health != null)
+        {
+            health.onAnniged -= Anniged;
+        }
+        base.OnDestroy();
+    }
 }

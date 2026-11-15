@@ -54,7 +54,7 @@ public class UI : MonoBehaviour
     public Action<PerkID> onPerkClick;
 
     //bool isSleep;
-    int maxScore;
+    int maxScore = -1;
 
     Player playerMine;
     // HOT FIX
@@ -141,6 +141,11 @@ public class UI : MonoBehaviour
         panelUpgrades.SetActive(false);
 
         panelNextStage.SetActive(false);
+
+        if (labelMaxScore != null)
+        {
+            labelMaxScore.text = "0";
+        }
     }
 
     private void Creepochek_Anniged(HealthComponent health)
@@ -587,7 +592,7 @@ public class UI : MonoBehaviour
 
             var screenPos = cam.WorldToScreenPoint(item.player.transform.position);
 
-            if (screenPos.x < 0 || screenPos.x > screenWidth 
+            if (screenPos.z <= 0 || screenPos.x < 0 || screenPos.x > screenWidth 
                 || screenPos.y < 0 || screenPos.y > screenHeight)
             {
                 item.canvas.alpha = 0;
@@ -622,7 +627,7 @@ public class UI : MonoBehaviour
 
             var screenPos = cam.WorldToScreenPoint(item.health.transform.position);
 
-            if (screenPos.x < 0 || screenPos.x > screenWidth
+            if (screenPos.z <= 0 || screenPos.x < 0 || screenPos.x > screenWidth
                 || screenPos.y < 0 || screenPos.y > screenHeight)
             {
                 item.canvas.alpha = 0;
