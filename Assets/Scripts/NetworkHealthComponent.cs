@@ -122,7 +122,7 @@ public class NetworkHealthComponent : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void RequestDamageServerRpc(int value, ulong ownerID)
     {
         health.Damage(value, ownerID);
@@ -153,7 +153,7 @@ public class NetworkHealthComponent : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void RequestIncreaseHealthServerRpc(int value)
     {
         health.IncreaseMaxHealth(value, true);

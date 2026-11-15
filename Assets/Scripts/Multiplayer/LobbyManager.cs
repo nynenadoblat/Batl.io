@@ -15,6 +15,7 @@ public class LobbyManager : MonoBehaviour
 
     [Space(3)]
     [SerializeField] byte maxPlayers = 10;
+    public byte MaxPlayers => maxPlayers;
 
     [Header("UI References")]
     [SerializeField] TextMeshProUGUI logText;

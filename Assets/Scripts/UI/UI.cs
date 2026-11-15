@@ -60,6 +60,33 @@ public class UI : MonoBehaviour
     // HOT FIX
     CompleteStatus status;
 
+    private Camera mainCamera;
+    private Camera MainCamera
+    {
+        get
+        {
+            if (mainCamera == null) mainCamera = Camera.main;
+            return mainCamera;
+        }
+    }
+
+    private float leaderboardTimer;
+    private const float LEADERBOARD_INTERVAL = 0.2f;
+
+    private int lastLvl = -1;
+    private int lastUpgrades = -1;
+    private float lastScore = -1f;
+    private int lastRuneSeconds = -1;
+    private float lastLossyScaleX;
+    private int cachedYOffset;
+
+    private static readonly Comparison<LiderboardEntry> s_LeaderboardComparer = (a, b) =>
+    {
+        int scoreA = a?.player != null ? a.player.ScoreTotal : 0;
+        int scoreB = b?.player != null ? b.player.ScoreTotal : 0;
+        return scoreB.CompareTo(scoreA);
+    };
+
     private void Awake()
     {
         if (joystick == null || joystickAttack == null)
@@ -387,16 +414,37 @@ public class UI : MonoBehaviour
     {
         if (playerMine != null)
         {
-            UpdateLvlBar();
-            labelCountUpgrades.text = $"x{playerMine.CountAvailableUpgrades}";
+            if (playerMine.Lvl != lastLvl)
+            {
+                lastLvl = playerMine.Lvl;
+                labelLvl.text = Language.Rus ? $"{lastLvl} ур." : $"{lastLvl} lvl.";
+            }
+
+            if (playerMine.CountAvailableUpgrades != lastUpgrades)
+            {
+                lastUpgrades = playerMine.CountAvailableUpgrades;
+                labelCountUpgrades.text = $"x{lastUpgrades}";
+            }
+
+            if (Mathf.Abs(playerMine.Score - lastScore) > 0.01f)
+            {
+                lastScore = playerMine.Score;
+                float thresold = 10 + Mathf.Pow(playerMine.Lvl, 1.3f);
+                expBar.value = playerMine.Score / thresold;
+            }
         }
 
         UpdateLiderboard();
         UpdateHealthBars();
 
-        if (GameManager.Instance.Rune)
+        if (GameManager.Instance != null && GameManager.Instance.Rune != null)
         {
-            runeTimeLeft.text = $"{RUNE_DURATION - GameManager.Instance.Rune.currentDuration:F0}";
+            int remainingSeconds = Mathf.CeilToInt(RUNE_DURATION - GameManager.Instance.Rune.currentDuration);
+            if (remainingSeconds != lastRuneSeconds)
+            {
+                lastRuneSeconds = remainingSeconds;
+                runeTimeLeft.text = remainingSeconds.ToString();
+            }
         }
     }
 
@@ -411,6 +459,12 @@ public class UI : MonoBehaviour
 
     void UpdateLiderboard()
     {
+        leaderboardTimer += Time.deltaTime;
+        if (leaderboardTimer < LEADERBOARD_INTERVAL)
+            return;
+        leaderboardTimer = 0f;
+
+        int currentMax = 0;
         for (int i = playersEntryes.Count - 1; i >= 0; i--)
         {
             var item = playersEntryes[i];
@@ -421,22 +475,36 @@ public class UI : MonoBehaviour
                 continue;
             }
 
-            item.entry.text = $"{item.player.ScoreTotal} Lvl.{item.player.Lvl} {item.player.Nickname}";
+            int score = item.player.ScoreTotal;
+            int lvl = item.player.Lvl;
 
-            if (item.player.ScoreTotal >= maxScore)
+            if (score != item.lastScore || lvl != item.lastLvl)
             {
-                maxScore = item.player.ScoreTotal;
-                labelMaxScore.text = maxScore.ToString();
+                item.lastScore = score;
+                item.lastLvl = lvl;
+                item.entry.text = $"{score} Lvl.{lvl} {item.player.Nickname}";
+            }
+
+            if (score > currentMax)
+            {
+                currentMax = score;
             }
         }
 
-        playersEntryes = playersEntryes.OrderByDescending(i => i.player != null ? i.player.ScoreTotal : 0).ToList();
+        if (currentMax != maxScore)
+        {
+            maxScore = currentMax;
+            labelMaxScore.text = maxScore.ToString();
+        }
+
+        playersEntryes.Sort(s_LeaderboardComparer);
 
         for (int i = 0; i < playersEntryes.Count; i++)
         {
-            if (playersEntryes[i].entry != null)
+            var entry = playersEntryes[i]?.entry;
+            if (entry != null && entry.transform.GetSiblingIndex() != i)
             {
-                playersEntryes[i].entry.transform.SetSiblingIndex(i);
+                entry.transform.SetSiblingIndex(i);
             }
         }
     }
@@ -494,7 +562,19 @@ public class UI : MonoBehaviour
 
     void UpdateHealthBars()
     {
-        int yOffset = (int)((float)Screen.height / 11f / transform.lossyScale.x);
+        var cam = MainCamera;
+        if (cam == null) return;
+
+        float scaleX = transform.lossyScale.x;
+        if (Mathf.Abs(scaleX - lastLossyScaleX) > 0.001f || cachedYOffset == 0)
+        {
+            lastLossyScaleX = scaleX;
+            cachedYOffset = scaleX > 0.0001f ? (int)(Screen.height / 11f / scaleX) : 0;
+        }
+
+        int screenWidth = Screen.width;
+        int screenHeight = Screen.height;
+
         for (int i = barsPlayers.Count - 1; i >= 0; i--)
         {
             var item = barsPlayers[i];
@@ -505,10 +585,10 @@ public class UI : MonoBehaviour
                 continue;
             }
 
-            var screenPos = Camera.main.WorldToScreenPoint(item.player.transform.position);
+            var screenPos = cam.WorldToScreenPoint(item.player.transform.position);
 
-            if (screenPos.x < 0 || screenPos.x > Screen.width 
-                || screenPos.y < 0 || screenPos.y > Screen.height)
+            if (screenPos.x < 0 || screenPos.x > screenWidth 
+                || screenPos.y < 0 || screenPos.y > screenHeight)
             {
                 item.canvas.alpha = 0;
                 continue;
@@ -516,12 +596,18 @@ public class UI : MonoBehaviour
             else
             {
                 item.canvas.alpha = 1;
-                var pos = screenPos / transform.lossyScale.x;
-                (item.bar.transform as RectTransform).anchoredPosition = pos - new Vector3(0, yOffset, 0);
+                var pos = screenPos / scaleX;
+                (item.bar.transform as RectTransform).anchoredPosition = pos - new Vector3(0, cachedYOffset, 0);
             }
 
-            var value = (float)item.player.Health.Value / (float)item.player.Health.MaxValue;
-            item.bar.value = value;
+            if (item.player.Health != null && item.player.Health.MaxValue > 0)
+            {
+                var value = (float)item.player.Health.Value / (float)item.player.Health.MaxValue;
+                if (Mathf.Abs(item.bar.value - value) > 0.001f)
+                {
+                    item.bar.value = value;
+                }
+            }
         }
 
         for (int i = healthBars.Count - 1; i >= 0; i--)
@@ -534,10 +620,10 @@ public class UI : MonoBehaviour
                 continue;
             }
 
-            var screenPos = Camera.main.WorldToScreenPoint(item.health.transform.position);
+            var screenPos = cam.WorldToScreenPoint(item.health.transform.position);
 
-            if (screenPos.x < 0 || screenPos.x > Screen.width
-                || screenPos.y < 0 || screenPos.y > Screen.height)
+            if (screenPos.x < 0 || screenPos.x > screenWidth
+                || screenPos.y < 0 || screenPos.y > screenHeight)
             {
                 item.canvas.alpha = 0;
                 continue;
@@ -545,12 +631,18 @@ public class UI : MonoBehaviour
             else
             {
                 item.canvas.alpha = 1;
-                var pos = screenPos / transform.lossyScale.x;
-                (item.bar.transform as RectTransform).anchoredPosition = pos - new Vector3(0, yOffset, 0);
+                var pos = screenPos / scaleX;
+                (item.bar.transform as RectTransform).anchoredPosition = pos - new Vector3(0, cachedYOffset, 0);
             }
 
-            var value = (float)item.health.Value / (float)item.health.MaxValue;
-            item.bar.value = value;
+            if (item.health.MaxValue > 0)
+            {
+                var value = (float)item.health.Value / (float)item.health.MaxValue;
+                if (Mathf.Abs(item.bar.value - value) > 0.001f)
+                {
+                    item.bar.value = value;
+                }
+            }
         }
     }
 
@@ -620,5 +712,7 @@ public class UI : MonoBehaviour
     {
         public Player player;
         public TMP_Text entry;
+        public int lastScore = -1;
+        public int lastLvl = -1;
     }
 }

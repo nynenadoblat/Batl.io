@@ -249,11 +249,7 @@ public class ProgressBar : MonoBehaviour
         Full
     }
 
-//#pragma warning disable CS0660 // Тип определяет оператор == или оператор !=, но не переопределяет Object.Equals(object o)
-//#pragma warning disable CS0661 // Тип определяет оператор == или оператор !=, но не переопределяет Object.GetHashCode()
-    private struct RectPosition
-//#pragma warning restore CS0661 // Тип определяет оператор == или оператор !=, но не переопределяет Object.GetHashCode()
-//#pragma warning restore CS0660 // Тип определяет оператор == или оператор !=, но не переопределяет Object.Equals(object o)
+    private struct RectPosition : System.IEquatable<RectPosition>
     {
         public Vector2 anchorMin;
         public Vector2 anchorMax;
@@ -266,14 +262,29 @@ public class ProgressBar : MonoBehaviour
             this.anchorPos = pos;
         }
 
+        public bool Equals(RectPosition other)
+        {
+            return anchorMin == other.anchorMin && anchorMax == other.anchorMax && anchorPos == other.anchorPos;
+        }
+
+        public override bool Equals(object obj)
+        {
+            return obj is RectPosition other && Equals(other);
+        }
+
+        public override int GetHashCode()
+        {
+            return System.HashCode.Combine(anchorMin, anchorMax, anchorPos);
+        }
+
         public static bool operator == (RectPosition rp1, RectPosition rp2)
         {
-            return rp1.anchorMin == rp2.anchorMin && rp1.anchorMax == rp2.anchorMax && rp1.anchorPos == rp2.anchorPos;
+            return rp1.Equals(rp2);
         }
 
         public static bool operator != (RectPosition rp1, RectPosition rp2)
         {
-            return rp1.anchorMin != rp2.anchorMin || rp1.anchorMax != rp2.anchorMax || rp1.anchorPos != rp2.anchorPos;
+            return !rp1.Equals(rp2);
         }
     }
 }

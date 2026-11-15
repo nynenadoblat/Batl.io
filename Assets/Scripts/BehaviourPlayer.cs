@@ -14,6 +14,16 @@ public class BehaviourPlayer : MonoBehaviour
 
     bool isFire;
     bool enableRotate;
+    Camera mainCam;
+
+    private Camera MainCam
+    {
+        get
+        {
+            if (mainCam == null) mainCam = Camera.main;
+            return mainCam;
+        }
+    }
 
     private IEnumerator Start()
     {
@@ -117,9 +127,9 @@ public class BehaviourPlayer : MonoBehaviour
                 transform.forward = aimDir;
             }
         }
-        else if (Camera.main != null)
+        else if (MainCam != null)
         {
-            var ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            var ray = MainCam.ScreenPointToRay(Input.mousePosition);
             Plane groundPlane = new Plane(Vector3.up, new Vector3(0, transform.position.y, 0));
             if (groundPlane.Raycast(ray, out float enter))
             {

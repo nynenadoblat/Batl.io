@@ -138,7 +138,7 @@ public class MultiplayerManager : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void RequestSpawnPlayerServerRpc(ulong clientId)
     {
         SpawnPlayerForClient(clientId);
@@ -161,7 +161,7 @@ public class MultiplayerManager : NetworkBehaviour
         }
     }
 
-    [ServerRpc(RequireOwnership = false)]
+    [Rpc(SendTo.Server, InvokePermission = RpcInvokePermission.Everyone)]
     private void RequestRespawnPlayerServerRpc(ulong clientId, string nickname)
     {
         RespawnPlayerOnServer(clientId, nickname);
