@@ -25,6 +25,7 @@ public class CameraHandler : MonoBehaviour
 
     private void NextStage_Availabled(Player player)
     {
+#pragma warning disable CS0618
         var c = cam as Unity.Cinemachine.CinemachineVirtualCamera;
         var transposer = c.GetCinemachineComponent<Unity.Cinemachine.CinemachineTransposer>();
 
@@ -33,6 +34,7 @@ public class CameraHandler : MonoBehaviour
         {
             transposer.m_FollowOffset = v;
         }, start, stagesCamOffests[player.Stage - 1], 0.5f).setEaseInOutQuad();
+#pragma warning restore CS0618
         //print("���� �����");
     }
 
@@ -49,6 +51,7 @@ public class CameraHandler : MonoBehaviour
             idxOffset = 0;
         }
 
+#pragma warning disable CS0618
         var c = cam as Unity.Cinemachine.CinemachineVirtualCamera;
         var transposer = c.GetCinemachineComponent<Unity.Cinemachine.CinemachineTransposer>();
 
@@ -57,6 +60,7 @@ public class CameraHandler : MonoBehaviour
         {
             transposer.m_FollowOffset = v;
         }, start, camOffsets[idxOffset], 0.5f).setEaseInOutQuad();
+#pragma warning restore CS0618
 
         urpSettings.shadowDistance = shadowDistances[idxOffset];
     }
