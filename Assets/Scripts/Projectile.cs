@@ -1,10 +1,10 @@
-using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
-using System.Linq;
 
 public class Projectile : MonoBehaviour
 {
+    private static readonly RaycastHit[] s_HitBuffer = new RaycastHit[16];
+
     [SerializeField] LayerMask collisionMask;
     [SerializeField] float speed = 15f;
 
@@ -14,25 +14,39 @@ public class Projectile : MonoBehaviour
     [SerializeField] Color enemy;
 
     MeshRenderer mesh;
+    ParticleSystem[] particles;
 
     public ulong OwnerId { get; set; }
 
     [field: SerializeField]
     public Team Team { get; set; }
 
-    Vector3 prevPoint, curPoint;
+    Vector3 prevPoint;
     Vector3 moveDir;
     [HideInInspector]
     public float lofetime;
     int dmg;
     ProjectileData projectileData;
 
-    public void Init(ProjectileData data)
+    private void Awake()
     {
         mesh = GetComponent<MeshRenderer>();
+        particles = GetComponentsInChildren<ParticleSystem>();
+    }
+
+    public void Init(ProjectileData data)
+    {
+        if (mesh == null)
+        {
+            mesh = GetComponent<MeshRenderer>();
+        }
+
+        if (particles == null || particles.Length == 0)
+        {
+            particles = GetComponentsInChildren<ParticleSystem>();
+        }
 
         prevPoint = transform.position;
-        curPoint = transform.position;
 
         projectileData = data;
 
@@ -48,27 +62,33 @@ public class Projectile : MonoBehaviour
             transform.forward = moveDir;
         }
 
-        if (data.mat)
+        if (data.mat != null && mesh != null)
         {
             mesh.material = data.mat;
         }
 
-        foreach (var item in GetComponentsInChildren<ParticleSystem>())
+        Color targetColor = (GameManager.Instance != null && GameManager.Instance.MineTeam == Team) ? friendly : enemy;
+        if (particles != null)
         {
-            var main = item.main;
-            main.startColor = GameManager.Instance.MineTeam == Team ? friendly : enemy;
+            for (int i = 0; i < particles.Length; i++)
+            {
+                var main = particles[i].main;
+                main.startColor = targetColor;
+            }
         }
     }
 
     private void Update()
     {
-        transform.position += speed * Time.deltaTime * moveDir;
+        Vector3 curPos = transform.position + (speed * Time.deltaTime * moveDir);
+        transform.position = curPos;
 
         lofetime += Time.deltaTime;
 
         if (lofetime > 1.5f)
         {
             ProjectilePool.Set(this);
+            return;
         }
 
         CheckCollision();
@@ -76,37 +96,48 @@ public class Projectile : MonoBehaviour
 
     void CheckCollision()
     {
-        Vector3 dir = curPoint - prevPoint;
+        Vector3 curPos = transform.position;
+        Vector3 displacement = curPos - prevPoint;
+        float distance = displacement.magnitude;
 
-        var hits = Physics.RaycastAll(prevPoint, dir, dir.magnitude * 1.5f, collisionMask);
-
-        hits = hits.ToList().Where(h =>
+        if (distance > 0.0001f)
         {
-            var health = h.collider.transform.root.GetComponent<HealthComponent>();
+            Vector3 direction = displacement / distance;
+            int hitCount = Physics.RaycastNonAlloc(prevPoint, direction, s_HitBuffer, distance * 1.1f, collisionMask);
 
-            if (health && health.OwnerID != OwnerId && health.Team != Team)
-                return true;
+            HealthComponent targetHealth = null;
+            float closestDist = float.MaxValue;
 
-            return false;
-
-        }).ToArray();
-
-        foreach (var hit in hits)
-        {
-            if (projectileData == null || !projectileData.isCosmetic)
+            for (int i = 0; i < hitCount; i++)
             {
-                CalculateDamage();
+                var hit = s_HitBuffer[i];
+                if (hit.collider == null) continue;
 
                 var health = hit.collider.transform.root.GetComponent<HealthComponent>();
-                health.Damage(dmg, OwnerId);
+                if (health != null && health.OwnerID != OwnerId && health.Team != Team)
+                {
+                    if (hit.distance < closestDist)
+                    {
+                        closestDist = hit.distance;
+                        targetHealth = health;
+                    }
+                }
             }
 
-            ProjectilePool.Set(this);
-            break;
+            if (targetHealth != null)
+            {
+                if (projectileData == null || !projectileData.isCosmetic)
+                {
+                    CalculateDamage();
+                    targetHealth.Damage(dmg, OwnerId);
+                }
+
+                ProjectilePool.Set(this);
+                return;
+            }
         }
 
-        prevPoint = curPoint;
-        curPoint = transform.position;
+        prevPoint = curPos;
     }
 
     void CalculateDamage()
