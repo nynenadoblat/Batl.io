@@ -35,6 +35,8 @@ public class MuzzleHandler : MonoBehaviour
 
         currentRate = 0;
 
+        float ownerScale = player.transform.localScale.x;
+
         var projectileData = new ProjectileData
         {
             baseDamege = (int)((float)player.baseDamage * damageMultiplier),
@@ -46,6 +48,7 @@ public class MuzzleHandler : MonoBehaviour
 
         Vector3[] positions = new Vector3[muzzles.Length];
         Vector3[] directions = new Vector3[muzzles.Length];
+        float[] scales = new float[muzzles.Length];
 
         for (int i = 0; i < muzzles.Length; i++)
         {
@@ -59,17 +62,21 @@ public class MuzzleHandler : MonoBehaviour
             positions[i] = pos;
             directions[i] = dir;
 
-            var projectile = ProjectilePool.Get(pos);
+            float muzzleScale = ownerScale * muzzles[i].ProjectileScale;
+            scales[i] = muzzleScale;
+
             projectileData.direction = dir;
+            projectileData.scale = muzzleScale;
             projectileData.mat = GameManager.Instance.MineTeam == player.Health.Team ? muzzles[i].friendly : muzzles[i].enemy;
 
+            var projectile = ProjectilePool.Get(pos);
             projectile.Init(projectileData);
         }
 
-        player.OnFired(positions, directions, projectileData.speed, projectileData.baseDamege, projectileData.critChance);
+        player.OnFired(positions, directions, projectileData.speed, projectileData.baseDamege, projectileData.critChance, scales);
     }
 
-    public void FireRemote(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    public void FireRemote(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance, float[] scales)
     {
         for (int i = 0; i < positions.Length; i++)
         {
@@ -94,7 +101,8 @@ public class MuzzleHandler : MonoBehaviour
                 team = player != null ? player.Health.Team : Team.One,
                 direction = dir,
                 isCosmetic = true,
-                mat = mat
+                mat = mat,
+                scale = (scales != null && i < scales.Length) ? scales[i] : 1f,
             };
             projectile.Init(projectileData);
         }

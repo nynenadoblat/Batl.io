@@ -2310,7 +2310,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   prefab: {fileID: 5753371125467466503, guid: efd8a1240f487fc4ab4d31100e5926d1, type: 3}
-  pool: []
+  defaultCapacity: 20
+  maxSize: 100
 --- !u!114 &1105674236
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2480,6 +2481,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   joystick: {fileID: 1303387780}
+  joystickAttack: {fileID: 0}
   btnCam: {fileID: 0}
   healthbarParent: {fileID: 1048630727}
   progressBarPrefab: {fileID: 1641480177471227451, guid: 1afda6aca69f5214da9a03b17a092937, type: 3}

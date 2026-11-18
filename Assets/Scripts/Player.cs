@@ -378,20 +378,20 @@ public class Player : NetworkBehaviour
         }
     }
 
-    public void OnFired(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    public void OnFired(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance, float[] scales)
     {
         var netPlayer = GetComponent<NetworkPlayer>();
         if (netPlayer != null)
         {
-            netPlayer.BroadcastFire(positions, directions, speed, damage, critChance);
+            netPlayer.BroadcastFire(positions, directions, speed, damage, critChance, scales);
         }
     }
 
-    public void SpawnRemoteProjectiles(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    public void SpawnRemoteProjectiles(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance, float[] scales)
     {
         if (muzzleHandler != null)
         {
-            muzzleHandler.FireRemote(positions, directions, speed, damage, critChance);
+            muzzleHandler.FireRemote(positions, directions, speed, damage, critChance, scales);
         }
         else
         {
@@ -409,7 +409,8 @@ public class Player : NetworkBehaviour
                     team = Health.Team,
                     direction = dir,
                     isCosmetic = true,
-                    mat = (GameManager.Instance != null && GameManager.Instance.MineTeam == Health.Team) ? friendly : enemy
+                    mat = (GameManager.Instance != null && GameManager.Instance.MineTeam == Health.Team) ? friendly : enemy,
+                    scale = (scales != null && i < scales.Length) ? scales[i] : 1f,
                 };
                 projectile.Init(projectileData);
             }

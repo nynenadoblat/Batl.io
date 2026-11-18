@@ -104,6 +104,13 @@ public class BehaviourPlayer : MonoBehaviour
                 isFire = !isFire;
             }
 
+            if (Input.GetKeyDown(KeyCode.O))
+            {
+                int amount = Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift) ? 2000 : 500;
+                player.AddScore(amount);
+                Debug.Log($"[DEBUG] Added {amount} score. Current Lvl: {player.Lvl}, ScoreTotal: {player.ScoreTotal}");
+            }
+
             bool wantsFire = Input.GetMouseButton(0) || isFire || (ui != null && ui.IsAttackingWithJoystick);
 
             if (wantsFire)

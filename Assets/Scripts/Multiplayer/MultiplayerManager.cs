@@ -258,6 +258,10 @@ public class MultiplayerManager : NetworkBehaviour
 
                 var player = p.GetComponent<Player>();
 
+                Team assignedTeam = GetBalancedAITeam();
+                p.GetComponent<NetworkHealthComponent>().SetTeam(assignedTeam);
+                player.Team_Seted(assignedTeam);
+
                 int profileIdx = 0;
                 bool profileFound = false;
 
@@ -293,7 +297,7 @@ public class MultiplayerManager : NetworkBehaviour
 
         var player = p.GetComponent<Player>();
 
-        player.Health.Team = data.team;
+        p.GetComponent<NetworkHealthComponent>().SetTeam(data.team);
         player.CountAnniges = data.countAnniges;
         player.CountAnniged = data.countAnniged;
         player.Score = data.score;
@@ -312,6 +316,23 @@ public class MultiplayerManager : NetworkBehaviour
                 yield return new WaitForSeconds(0.07f);
             }
         }
+    }
+
+    public Team GetBalancedAITeam()
+    {
+        int teamOneCount = 0;
+        int teamTwoCount = 0;
+
+        foreach (var pl in GameManager.Instance.allPlayers)
+        {
+            if (pl)
+            {
+                if (pl.Health.Team == Team.One) teamOneCount++;
+                else if (pl.Health.Team == Team.Two) teamTwoCount++;
+            }
+        }
+
+        return teamTwoCount < teamOneCount ? Team.Two : Team.One;
     }
 
     public static void AddPlayer(Player player) => Players.Add(player);

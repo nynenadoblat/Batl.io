@@ -76,15 +76,7 @@ public class NetworkPlayer : NetworkBehaviour
             {
                 int idx = (int)(OwnerClientId % 2);
                 var team = (Team)idx;
-                var netHealth = GetComponent<NetworkHealthComponent>();
-                if (netHealth != null)
-                {
-                    netHealth.SetTeam(team);
-                }
-                else
-                {
-                    player.Health.Team = team;
-                }
+                GetComponent<NetworkHealthComponent>().SetTeam(team);
             }
 
             if (IsOwner)
@@ -400,30 +392,30 @@ public class NetworkPlayer : NetworkBehaviour
         }
     }
 
-    public void BroadcastFire(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    public void BroadcastFire(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance, float[] scales)
     {
         if (IsServer)
         {
-            FireClientRpc(positions, directions, speed, damage, critChance);
+            FireClientRpc(positions, directions, speed, damage, critChance, scales);
         }
         else if (IsOwner)
         {
-            FireServerRpc(positions, directions, speed, damage, critChance);
+            FireServerRpc(positions, directions, speed, damage, critChance, scales);
         }
     }
 
     [ServerRpc]
-    private void FireServerRpc(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    private void FireServerRpc(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance, float[] scales)
     {
-        FireClientRpc(positions, directions, speed, damage, critChance);
+        FireClientRpc(positions, directions, speed, damage, critChance, scales);
     }
 
     [ClientRpc]
-    private void FireClientRpc(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance)
+    private void FireClientRpc(Vector3[] positions, Vector3[] directions, int speed, int damage, int critChance, float[] scales)
     {
         if (!IsOwner && player != null)
         {
-            player.SpawnRemoteProjectiles(positions, directions, speed, damage, critChance);
+            player.SpawnRemoteProjectiles(positions, directions, speed, damage, critChance, scales);
         }
     }
 }

@@ -202,11 +202,11 @@ public class UI : MonoBehaviour
 
     private void Profile_Seted(AIProfile profile, Player player)
     {
-        //if (playersHealthBars.ContainsKey(player))
-        //{
-        //    var bar = playersHealthBars[player];
-        //    (bar as PlayerHealthBar).nickname.text = profile.name;
-        //}
+        var pair = barsPlayers.Find(p => p.player == player);
+        if (pair != null)
+        {
+            (pair.bar as PlayerHealthBar).nickname.text = profile.name;
+        }
     }
 
     private void Victory(Team team)

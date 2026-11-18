@@ -51,6 +51,7 @@ public class NetworkHealthComponent : NetworkBehaviour
             {
                 health.IncreaseMaxHealth(netMaxHealth.Value - health.MaxValue, true);
             }
+            health.SetHealthNetwork(netHealth.Value, 0);
             health.Team = netTeam.Value;
         }
 

@@ -45,7 +45,7 @@ public class HealthComponent : MonoBehaviour
 
     float healTimer;
 
-    private void Start()
+    private void Awake()
     {
         IsAlive = true;
 
@@ -57,8 +57,8 @@ public class HealthComponent : MonoBehaviour
         if (Random.Range(0, 100) < Evasion)
             return;
 
-        value -= Armor;
-        Value -= value;
+        int finalDamage = Mathf.Max(1, value - Armor);
+        Value = Mathf.Max(0, Value - finalDamage);
 
         LastDamagedOwnerID = ownerID;
 

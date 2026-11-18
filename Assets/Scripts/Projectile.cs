@@ -16,6 +16,7 @@ public class Projectile : MonoBehaviour
     MeshRenderer mesh;
     ParticleSystem[] particles;
     TrailRenderer trail;
+    Vector3 baseScale;
 
     public ulong OwnerId { get; set; }
 
@@ -34,6 +35,7 @@ public class Projectile : MonoBehaviour
         mesh = GetComponent<MeshRenderer>();
         particles = GetComponentsInChildren<ParticleSystem>();
         trail = GetComponentInChildren<TrailRenderer>();
+        baseScale = transform.localScale;
     }
 
     public void Init(ProjectileData data)
@@ -68,6 +70,8 @@ public class Projectile : MonoBehaviour
         Team = data.team;
         speed = data.speed;
         lofetime = 0f;
+
+        transform.localScale = baseScale * data.scale;
 
         if (moveDir != Vector3.zero)
         {
@@ -174,4 +178,5 @@ public class ProjectileData
     public Team team;
     public Material mat;
     public bool isCosmetic;
+    public float scale = 1f;
 }

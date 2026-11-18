@@ -295,10 +295,12 @@ public class GameManager : MonoBehaviour
         if (complete)
             return new();
 
-        var targets = allPlayers.Where(p => p).Select(p => p.Health).ToList();
-        //targets.AddRange(citadels.Where(c => c).Select(c => c.Health));
-        targets.AddRange(allCreeps.Where(t => t));
-        //targets.AddRange(towers.Where(t => t).Select(t => t.Health));
+        var targets = allPlayers
+            .Where(p => p && p.Health.Team != health.Team)
+            .Select(p => p.Health)
+            .ToList();
+
+        targets.AddRange(allCreeps.Where(t => t && t.Team != health.Team));
 
         return targets.Where(t => t != health).ToList();
     }
