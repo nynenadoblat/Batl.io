@@ -35,8 +35,6 @@ public class MuzzleHandler : MonoBehaviour
 
         currentRate = 0;
 
-        float ownerScale = player.transform.localScale.x;
-
         var projectileData = new ProjectileData
         {
             baseDamege = (int)((float)player.baseDamage * damageMultiplier),
@@ -62,7 +60,8 @@ public class MuzzleHandler : MonoBehaviour
             positions[i] = pos;
             directions[i] = dir;
 
-            float muzzleScale = ownerScale * muzzles[i].ProjectileScale;
+            // Снаряд шириной с дуло: ширина куба на конце ствола делится на ширину снаряда из префаба.
+            float muzzleScale = muzzles[i].BarrelWidth / ProjectilePool.BaseWidth;
             scales[i] = muzzleScale;
 
             projectileData.direction = dir;

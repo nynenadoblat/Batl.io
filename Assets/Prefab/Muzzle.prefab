@@ -261,3 +261,4 @@ MonoBehaviour:
   point: {fileID: 7906320190668163505}
   friendly: {fileID: 2100000, guid: bdbd7b4e3d093aa44bb7c595beb37b74, type: 2}
   enemy: {fileID: 2100000, guid: eae234eb3ce84f346b8f63c13fb07f32, type: 2}
+  barrel: {fileID: 4920018719791749109}

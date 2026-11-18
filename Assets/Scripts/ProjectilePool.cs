@@ -10,6 +10,9 @@ public class ProjectilePool : MonoBehaviour
 
     public static ProjectilePool Instance { get; private set; }
 
+    // Ширина снаряда из префаба. Снаряд - цилиндр диаметром 1, поэтому ширина равна localScale.x.
+    public static float BaseWidth => Instance.prefab.transform.localScale.x;
+
     private ObjectPool<Projectile> pool;
 
     private void Awake()
